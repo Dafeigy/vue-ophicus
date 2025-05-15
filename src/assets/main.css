@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Futura";
+  font-style: normal;
+  /* font-weight: 200 700; */
+  font-display: swap;
+  src: url("fonts/Futura.otf") format('woff2');
+}
+
+@font-face {
+  font-family: "Dep";
+  font-style: normal;
+  /* font-weight: 200 700; */
+  font-display: swap;
+  src: url("fonts/DepartureMono-Regular.woff2") format('woff2');
+}
+
+
+@theme {
+  --color-orange: #b2653b;
+  --color-green:#5c7f71;
+  --color-darkred: #802520;
+  --color-yellow: #ba8530;
+  --color-dark: #181818;
+  --color-theme: #f5eddc;
+  --font-display: "Futura";
+  --animate-circle: circle 0.75s linear infinite;
+  
+}
