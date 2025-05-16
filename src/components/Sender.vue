@@ -31,7 +31,7 @@ const url =
             <div class="card-header font-display text-3xl bg-orange px-4 mt-6">
                 ENCODE STATUS
             </div>
-            <div id="details" class="items grid grid-cols-3 mt-2 px-4 gap-2 ">
+            <div id="details" class="grid grid-cols-3 mt-2 px-4 gap-2 ">
                 <p class="bg-green text-theme px-1">FILENAME:</p> <p class="col-span-2"> Helloworld.md</p>
                 <p class="bg-green text-theme px-1">BLOCKS INDICES</p><p class="col-span-2">[1,2,3,4,5]</p>
                 <p class="bg-green text-theme px-1">TOTAL BLOCKS</p><p class="col-span-2">68</p>

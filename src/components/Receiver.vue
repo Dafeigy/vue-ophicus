@@ -24,23 +24,25 @@ const url =
 
 <template>
     <div id="con" class="flex h-[100vh] flex-col items-center bg-[#202020] p-2">
-        <div id="TODO" class="w-[50vmin] h-[10%]  items-center  flex text-theme text-left text-4xl font-display">PROJECT OPHICULUS</div>
-        <div id="status" class=" w-[50vmin] flex justify-center" >
-            <el-card style="width: 95%">
-                <template #header>
-                    <div class="card-header font-display ">
-                    <span>RECEIVING BLOCKS</span>
-                </div>
-                </template>
-                <el-space wrap>
-                    <div v-for="item in 64" class="rounded bg-orange w-[0.8vmax] h-[0.8vmax] items-center flex justify-center font-[100px]">
+        <div id="TODO" class="w-[50vmin] h-[10%]  items-center  flex text-green font-bold bg-theme text-left text-4xl font-display">
+            PROJECT OPHICULUS
+        </div>
+        <div id="status" class=" w-[50vmin] flex justify-center flex-col" >
+
+            <div class="card-header font-display text-3xl bg-orange px-4 mt-6">
+                RECEIVING BLOCKS
+            </div>
+            <div id="blocks-display" class="grid grid-cols-16 gap-1 mt-2 px-4">
+                    <div v-for="item in 63" class="rounded text-sm bg-theme text-green w-[0.8vmax] h-[0.8vmax] flex justify-center items-center">
                         {{ item }}
                     </div>
-                </el-space>
-            </el-card>
+                    <div>...</div>
+            </div>
+                
+           
         </div>
         <div id="progress" class="w-[50vmin] mt-[2%] flex items-center justify-center">
-                <el-progress :percentage="98" class="text-white w-[95%]" color="#b2653b"/>
+                <el-progress :percentage="43" class="text-white w-[95%]" color="pink"/>
         </div>
         <div id="img" class=" w-[50vmin] h-[50vmin]  items-center justify-center flex">
             <el-card style="width: 95%">
