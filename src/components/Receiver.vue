@@ -3,9 +3,6 @@
 // ES6 import
 import jsQR from "jsqr";
 import { encode, decode } from 'js-base64';
-console.log('Origin:123')
-console.log(decode("MTIz"))
-console.log(encode("123"))
 
 
 import { ImageProps } from 'element-plus'
@@ -25,7 +22,7 @@ const url =
 <template>
     <div id="con" class="flex h-[100vh] flex-col items-center bg-[#202020] p-2">
         <div id="TODO" class="w-[50vmin] h-[10%]  items-center  flex text-green font-bold bg-theme text-left text-4xl font-display">
-            PROJECT OPHICULUS
+            PROJECT OPHICULUS [R]
         </div>
         <div id="status" class=" w-[50vmin] flex justify-center flex-col" >
 

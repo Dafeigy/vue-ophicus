@@ -2,12 +2,30 @@
 // encode("123")
 // ES6 import
 import jsQR from "jsqr";
-import { encode, decode } from 'js-base64';
-console.log('Origin:123')
-console.log(decode("MTIz"))
-console.log(encode("123"))
+import {
+  encode,
+  renderANSI,
+  renderSVG,
+  renderUnicode,
+  renderUnicodeCompact,
+} from 'uqr'
 
 
+const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUS", {
+    pixelSize : 12,
+    whiteColor : '#1D1E1F',
+    blackColor :'#f5eddc',
+    }
+)
+
+const ansi = renderUnicodeCompact('PROJECT OPHICULUS', {
+  ecc: 'L',
+  // Border width
+  border: 1,
+})
+
+// display QR Code in terminal
+console.log(ansi)
 import { ImageProps } from 'element-plus'
 
 const fits = [
@@ -25,7 +43,7 @@ const url =
 <template>
     <div id="con" class="flex h-[100vh] flex-col items-center bg-[#202020] p-2">
         <div id="TODO" class="w-[50vmin] h-[10%]  items-center  flex text-green text-left text-4xl font-display px-2.5 font-bold bg-theme">
-            PROJECT OPHICULUS
+            PROJECT OPHICULUS [T]
         </div>
         <div id="status" class=" w-[50vmin] flex justify-center font-display flex-col " >
             <div class="card-header font-display text-3xl bg-orange px-4 mt-6">
@@ -41,8 +59,10 @@ const url =
             </div>
             
         </div>
-        <div id="img" class=" w-[50vmin] h-[50vmin]  items-center justify-center flex border-green border-2 mt-2.5 bg-dark">
-                <img src="https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png" tyle="width: 100%" />
+        <div id="img" class=" w-[50vmin] h-[50vmin]  items-center flex mt-2.5  justify-center font-mono">
+            <el-card style="width: 95%; height: 95%;">
+                <div v-html="svgg" class="qrcode"></div>
+            </el-card>
         </div>
         <div id="control" class=" w-[50vmin] h-[5%]  items-center justify-center flex mt-6">
             <el-button type="success" color="#5c7f71">START STRAMING</el-button>
@@ -51,3 +71,7 @@ const url =
     </div>
 
 </template>
+
+<style>
+
+</style>
