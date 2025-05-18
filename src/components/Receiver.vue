@@ -17,7 +17,7 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
 
 <template>
     <div id="con" class="flex h-[100vh] flex-col items-center bg-[#202020] p-2">
-        <div id="TODO" class="w-[50vmin] h-[10%]  items-center  flex text-green font-bold bg-theme text-left text-4xl font-display">
+        <div id="TODO" class="w-[50vmin] h-[10%]  items-center  flex text-green font-bold bg-theme text-left text-4xl px-2.5 font-display">
             PROJECT OPHICULUS [R]
         </div>
         <div id="status" class=" w-[50vmin] flex justify-center flex-col" >
@@ -26,7 +26,7 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                 ▧ RECEIVING STATUS▸
             </div>
             <div id="blocks-display" class="grid grid-cols-16 gap-1 mt-2 px-4 grid-rows-6">
-                    <div v-for="item in 95" class="rounded text-sm  border-1 text-theme w-[0.8vmax] h-[0.8vmax] flex justify-center items-center">
+                    <div v-for="item in 95" class="cursor-pointer rounded text-sm  border-1 text-theme w-[0.8vmax] h-[0.8vmax] flex justify-center items-center">
                         {{ item }}
                     </div>
                     <div>...</div>
