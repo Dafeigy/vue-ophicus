@@ -13,7 +13,49 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
     blackColor :'#f5eddc',
     }
 )
+import { ref } from 'vue';
+const file = ref(null);
+const chunks = ref([]);
+const transBlockIndices = ref([]);
+const tranFPS = ref(0);
+const bitRATE = ref(0);
 
+
+const handleFileClick = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.onchange = (event) => {
+    file.value = event.target.files[0];
+    const chunkSize = 1024 * 1024; // 1MB
+    chunks.value = [];
+    let start = 0;
+
+    while (start < file.value.size) {
+      const end = Math.min(start + chunkSize, file.value.size);
+      chunks.value.push(file.value.slice(start, end));
+      start = end;
+    }
+
+    console.log('文件切片:', chunks.value);
+  };
+  input.click();
+};
+
+const handleFileSlice = () => {
+  if (file.value) {
+    const chunkSize = 1024 * 1024; // 1MB
+    chunks.value = [];
+    let start = 0;
+
+    while (start < file.value.size) {
+      const end = Math.min(start + chunkSize, file.value.size);
+      chunks.value.push(file.value.slice(start, end));
+      start = end;
+    }
+
+    console.log('文件切片:', chunks.value);
+  }
+};
 
 </script>
 
@@ -27,12 +69,12 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                 ▧ ENCODE STATUS▸
             </div>
             <div id="details" class="grid grid-cols-5 mt-2 px-4 gap-2 ">
-                <p class="bg-green text-theme px-1 col-span-2">▣ FILENAME:</p> <p class="col-span-3 "> Helloworld.md</p>
-                <p class="bg-green text-theme px-1 col-span-2">▣ BLOCKS INDICES</p><p class="col-span-3 ">[1,2,3,4,5]</p>
-                <p class="bg-green text-theme px-1 col-span-2">▣ TOTAL BLOCKS</p><p class="col-span-3 ">68</p>
-                <p class="bg-green text-theme px-1 col-span-2">▣ BYTES</p><p class="col-span-3 ">529.21KB</p>
-                <p class="bg-green text-theme px-1 col-span-2">▣ BITRATE</p ><p class="col-span-3 ">20</p>
-                <p class="bg-green text-theme px-1 col-span-2">▣ FPS</p><p class="col-span-3 ">23.1</p>
+                <p class="bg-green text-theme px-1 col-span-2">▣ FILENAME:</p> <p class="col-span-3 " v-if="file">{{ file.name }}</p><p class="col-span-3 " v-else> No File Selected yet :)</p>
+                <p class="bg-green text-theme px-1 col-span-2">▣ BYTES</p><p class="col-span-3 " v-if="file" >{{ file.size }} BYTES</p><p class="col-span-3 " v-else></p>
+                <p class="bg-green text-theme px-1 col-span-2">▣ TOTAL BLOCKS</p><p class="col-span-3 " v-if="file">{{ chunks.length }}</p><p class="col-span-3 " v-else></p>
+                <p class="bg-green text-theme px-1 col-span-2">▣ BLOCKS INDICES</p><p class="col-span-3 " v-if="file">{{ transBlockIndices }}</p><p class="col-span-3 " v-else></p>
+                <p class="bg-green text-theme px-1 col-span-2">▣ BITRATE</p ><p class="col-span-3 " v-if="file">{{ bitRATE }}</p><p class="col-span-3 " v-else></p>
+                <p class="bg-green text-theme px-1 col-span-2">▣ FPS</p><p class="col-span-3 " v-if="file">{{ tranFPS}}</p><p class="col-span-3 " v-else></p>
             </div>
             
         </div>
@@ -42,8 +84,8 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
             </el-card>
         </div>
         <div id="control" class=" w-[50vmin] h-[5%] grid-cols-2 grid px-4 text-theme">
-            <el-button type="success" color="#5c7f71">START STRAMING</el-button>
-            <el-button type="warning" color="#ba8530">SELECT FILE </el-button>
+            <el-button type="success" color="#5c7f71" @click="handleFileSlice">START STRAMING</el-button>
+            <el-button type="warning" color="#ba8530"  @click="handleFileClick">SELECT FILE </el-button>
         </div>
     </div>
 
