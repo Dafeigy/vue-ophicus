@@ -7,8 +7,8 @@ import Sender from './components/Sender.vue'
 </script>
 
 <template>
-  <div id="container" class="flex w-full items-center justify-center bg-[#101010] h-[100vh] flex-row">
-    <Receiver/>
+  <div id="container" class="flex items-center justify-center bg-[#202020] h-[100vh] flex-row">
+    <!-- <Receiver/> -->
      <Sender/>
   </div>
 
