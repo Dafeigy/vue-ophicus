@@ -60,7 +60,7 @@ const handleFileSlice = () => {
 </script>
 
 <template>
-    <div id="con" class="w-full flex sm:h-[96vh] lg:flex-row flex-col items-center bg-[#202020] p-2 sm:border-0  md:border-0 border-1 justify-center">
+    <div id="con" class="w-full flex sm:h-[96vh] lg:flex-row flex-col items-center bg-[#202020] p-2 sm:border-0  md:border-0 justify-center">
         <div id="left" class="lg:w-[40%]">
             <div id="TODO" class="w-full h-[20%] items-center sm:text-4xl text-3xl flex text-green text-left font-display px-2.5 font-bold bg-theme">
                 PROJECT OPHICULUS
