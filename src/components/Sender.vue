@@ -7,7 +7,7 @@ import {
 } from 'uqr'
 
 
-const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUS", {
+const svgg = renderSVG("PROJECT OPHICULUS ", {
     pixelSize : 12,
     whiteColor : '#1D1E1F',
     blackColor :'#f5eddc',
@@ -20,26 +20,60 @@ const transBlockIndices = ref([]);
 const tranFPS = ref(0);
 const bitRATE = ref(0);
 
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // reader.result 的格式是 "data:application/octet-stream;base64,AAAA..."
+      // 我们通常只需要逗号后面的部分
+      const dataUrl = reader.result;
+      // 如果编码器需要纯Base64字符串（不包含Data URL前缀），则进行拆分
+      const base64:string = (dataUrl as string).split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob); // 这个方法会生成Data URL
+  })
+}
 
-const handleFileClick = () => {
+const handleFileClick = async() => {
   const input = document.createElement('input');
   input.type = 'file';
-  input.onchange = (event) => {
-    file.value = event.target.files[0];
-    const chunkSize = 1024 * 1024; // 1MB   
+  input.onchange = async (event) => {
+    file.value = (event.target as HTMLInputElement).files[0];
+    const chunkSize = 1024 * 2; // 2KB   
     chunks.value = [];
-    let start = 0;
-
-    while (start < file.value.size) {
-      const end = Math.min(start + chunkSize, file.value.size);
-      chunks.value.push(file.value.slice(start, end));
-      start = end;
+    console.log(file.value)
+    
+    // 1. 先将整个文件转换为Base64字符串
+    const fullBase64 = await blobToBase64(file.value);
+    
+    // 2. 将Base64字符串转换为二进制数据
+    const binaryString = atob(fullBase64 as string);
+    const totalBytes = binaryString.length;
+    
+    // 3. 按块大小切分
+    for (let i = 0; i < totalBytes; i += chunkSize) {
+      // 获取当前块的二进制字符串
+      let chunkBinary = binaryString.substring(i, Math.min(i + chunkSize, totalBytes));
+      
+      // 如果不足块大小，用空字符填充（对应0）
+      if (chunkBinary.length < chunkSize) {
+        chunkBinary = chunkBinary.padEnd(chunkSize, '\0');
+      }
+      
+      // 将二进制字符串转换回Base64
+      const base64String = btoa(chunkBinary);
+      chunks.value.push(base64String);
     }
 
-    console.log('文件切片:', chunks.value);
+    console.log('文件切片数量:', chunks.value.length);
+    console.log('每个切片长度:', chunks.value[0]?.length); // 所有切片长度相等
+    console.log('文件切片:', chunks.value); 
   };
   input.click();
 };
+
 
 const handleFileSlice = () => {
   if (file.value) {
