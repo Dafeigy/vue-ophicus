@@ -105,7 +105,7 @@ function startEncoding() {
       console.error('Error generating encoded block:', error);
       stopEncoding();
     }
-  }, 30); // 30ms间隔
+  },50); // 30ms间隔
 }
 
 // 停止编码
@@ -125,6 +125,19 @@ function stopEncoding() {
       console.error('Error freeing encoded block:', error);
     }
   }
+  
+  // 重置FPS和比特率指标
+  tranFPS.value = 0;
+  bitRATE.value = 0;
+  
+  // 恢复显示初始欢迎信息二维码
+  svgg.value = renderSVG("PROJECT OPHICULUS ", {
+    pixelSize: 12,
+    whiteColor: '#1D1E1F',
+    blackColor: '#f5eddc',
+  });
+  
+  console.log('Encoding stopped and resources freed');
 }
 
 // 组件卸载时确保清理定时器
@@ -260,7 +273,7 @@ const handleFileSlice = () => {
                 <p class="bg-green text-theme px-1 col-span-2 ">▣ FILENAME:</p> <p class="col-span-3 " v-if="file">{{ file.name }}</p><p class="col-span-3 " v-else> No File Selected yet...</p>
                 <p class="bg-green text-theme px-1 col-span-2 ">▣ BYTES:</p><p class="col-span-3 " v-if="file" >{{ file.size }} BYTES</p><p class="col-span-3 " v-else>0 Bytes</p>
                 <p class="bg-green text-theme px-1 col-span-2 ">▣ TOTAL:</p><p class="col-span-3 " v-if="file">{{ chunks.length }}</p><p class="col-span-3 " v-else>0 </p>
-                <p class="bg-theme text-green px-1 col-span-2 select-none">▣ INDICES</p><p class="col-span-3 " v-if="file">{{ transBlockIndices }}</p><p class="col-span-3 " v-else>[ ]</p>
+                <p class="bg-theme text-green px-1 col-span-2 select-none">▣ INDICES</p><p class="col-span-3 " v-if="file && transBlockIndices.length > 0">{{ transBlockIndices[transBlockIndices.length - 1] }}</p><p class="col-span-3 " v-else>[ ]</p>
                 <p class="bg-theme text-green px-1 col-span-2 select-none">▣ BITRATE</p ><p class="col-span-3 " v-if="file">{{ bitRATE }} bit/s</p><p class="col-span-3 " v-else>0.0 bits/s</p>
                 <p class="bg-theme text-green px-1 col-span-2 select-none">▣ FPS</p><p class="col-span-3 " v-if="file">{{ tranFPS}} </p><p class="col-span-3 " v-else>0</p>
             </div>
@@ -275,7 +288,12 @@ const handleFileSlice = () => {
             </div>
             <div id="control" class="w-[90%] lg:w-[50%] h-[5%] grid-cols-5 grid px-4 text-theme mt-2">
                 <el-button type="success" color="#5c7f71" class="col-span-2" @click="handleFileSlice">RECEIVER</el-button>
-                <el-button type="success" color="#f5eddc" class="col-span-1" @click="startEncoding" :disabled="!encoder || isEncoding">{{ isEncoding ? 'Encoding...' : 'Start' }}</el-button>
+                <template v-if="isEncoding">
+                  <el-button type="danger" color="#f55e5e" class="col-span-1" @click="stopEncoding">Stop</el-button>
+                </template>
+                <template v-else>
+                  <el-button type="success" color="#f5eddc" class="col-span-1" @click="startEncoding" :disabled="!encoder">Start</el-button>
+                </template>
                 <el-button type="warning" color="#ba8530" class="col-span-2"  @click="handleFileClick">SELECT FILE </el-button>
             </div>
         </div>
