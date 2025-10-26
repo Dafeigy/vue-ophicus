@@ -7,6 +7,7 @@ export const __wbg_encodedblock_free: (a: number, b: number) => void;
 export const encodedblock_new: (a: bigint, b: number, c: number, d: number) => number;
 export const encodedblock_seed: (a: number) => bigint;
 export const encodedblock_degree: (a: number) => number;
+export const encodedblock_indices: (a: number) => [number, number];
 export const encodedblock_data: (a: number) => [number, number];
 export const lubytransformencoder_new: (a: number, b: number, c: number, d: bigint) => number;
 export const lubytransformencoder_generate_block: (a: number, b: number, c: bigint) => number;

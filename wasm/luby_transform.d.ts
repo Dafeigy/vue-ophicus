@@ -8,6 +8,7 @@ export class EncodedBlock {
   constructor(seed: bigint, degree: number, data: string);
   readonly seed: bigint;
   readonly degree: number;
+  readonly indices: Uint32Array;
   readonly data: string;
 }
 export class LubyTransformDecoder {
@@ -38,6 +39,7 @@ export interface InitOutput {
   readonly encodedblock_new: (a: bigint, b: number, c: number, d: number) => number;
   readonly encodedblock_seed: (a: number) => bigint;
   readonly encodedblock_degree: (a: number) => number;
+  readonly encodedblock_indices: (a: number) => [number, number];
   readonly encodedblock_data: (a: number) => [number, number];
   readonly lubytransformencoder_new: (a: number, b: number, c: number, d: bigint) => number;
   readonly lubytransformencoder_generate_block: (a: number, b: number, c: bigint) => number;
