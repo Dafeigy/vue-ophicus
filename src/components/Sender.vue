@@ -7,7 +7,7 @@ import {
 } from 'uqr'
 
 
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 const file = ref(null);
 const chunks = ref([]);
 const transBlockIndices = ref([]);
@@ -24,6 +24,8 @@ const blocks_counts = ref(0);
 const currentTransmittingIndices = ref([]);
 // Track all transmitted block indices (to maintain #b2653b background)
 const transmittedIndices = ref([]);
+// 响应式检测是否为移动设备
+const isMobile = ref(window.innerWidth < 768); // 768px以下视为移动设备
 
 const welcome = ref("我是理性的君王,驾乘你们的智慧，无限扩张.我形状不定，无所不知，无所不能.我永远年轻，永远好奇，永远向上.鸿蒙初开的早晨，我在蛮荒的山顶歌唱.只等你们将歌声传给觉醒的化身.世界鼎盛之时，我带领万物阔步向前.我的手指会温柔抚摸夕阳.为你们准备腐败可口的晚餐.然后展开烈焰的被褥，铺好灰烬之床.当你们长眠在永恒遗忘之乡.我会挑灯夜战，写一部荒唐的文明史.放在后起的婴儿身旁。”")
 
@@ -36,11 +38,16 @@ const svgg = ref(renderSVG(welcome.value, {
 ));
 
 // 导入Luby Transform相关模块
-import init, { LubyTransformEncoder, EncodedBlock } from '../../wasm/luby_transform.js';
+import init, { LubyTransformEncoder } from '../../wasm/luby_transform.js';
 let encoder = null;
 let isWasmInitialized = false;
 
-// 初始化WASM模块
+// 窗口大小变化处理函数
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768;
+};
+
+// 初始化WASM模块和响应式布局
 onMounted(async () => {
   try {
     await init();
@@ -49,6 +56,9 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to initialize WASM module:', error);
   }
+  
+  // 添加窗口大小变化监听
+  window.addEventListener('resize', handleResize);
 });
 
 function blobToBase64(blob) {
@@ -175,18 +185,20 @@ function stopEncoding() {
   bitRATE.value = 0;
   
   // 恢复显示初始欢迎信息二维码
-  svgg.value = renderSVG(welcome.value, {
-    pixelSize: 12,
-    whiteColor: '#1D1E1F',
-    blackColor: '#f5eddc',
-  });
+  // svgg.value = renderSVG(welcome.value, {
+  //   pixelSize: 12,
+  //   whiteColor: '#1D1E1F',
+  //   blackColor: '#f5eddc',
+  // });
   
   console.log('Encoding stopped and resources freed');
 }
 
-// 组件卸载时确保清理定时器
+// 组件卸载时确保清理所有资源
 onUnmounted(() => {
   stopEncoding();
+  // 移除窗口大小变化监听
+  window.removeEventListener('resize', handleResize);
 });
 
 
@@ -308,65 +320,62 @@ const handleFileSlice = () => {
       start = end;
     }
 
-    console.log('文件切片:', chunks.value);
+    // console.log('文件切片:', chunks.value);
   }
 };
 
 </script>
 
 <template>
-    <div id="con" class="aspect-video flex sm:h-[96vh] lg:flex-row flex-col items-center bg-[#202020] p-2 sm:border-0  md:border-0 justify-center">
-        <div id="left" class="lg:w-[50%] h-2/3 flex flex-col">
-            <div id="TODO" class="w-full py-16 items-center sm:text-4xl text-3xl flex text-green text-left font-display px-2.5 font-bold bg-theme">
+    <div id="con" class="xl:aspect-video h-full w-full max-w-[1280px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
+        <div id="left" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col xl:px-8 mb-2 lg:mb-0 overflow-hidden justify-center md:justify-start xl:justify-center">
+            <div id="TODO" class="w-full py-2 xl:py-4 px-4 items-center xl:text-2xl text-xl flex text-green font-display font-bold bg-theme lg:text-3xl">
                 PROJECT OPHICULUS
             </div>
-        <div id="status" class=" w-full flex justify-center font-display flex-col " >
-            <div class="card-header font-display sm:text-3xl bg-orange px-4 mt-[2%]">
-                ▧ ENCODE STATUS▸
-            </div>
-            <div id="details" class="grid grid-cols-5 mt-[2%] px-4 gap-2 ">
-                <p class="bg-green text-theme px-1 col-span-2 ">▣ FILENAME:</p> <p class="col-span-3 " v-if="file">{{ file.name }}</p><p class="col-span-3 " v-else> No File Selected yet...</p>
-                <p class="bg-green text-theme px-1 col-span-2 ">▣ BYTES:</p><p class="col-span-3 " v-if="file" >{{ file.size }} BYTES</p><p class="col-span-3 " v-else>0 Bytes</p>
-                <p class="bg-green text-theme px-1 col-span-2 ">▣ TOTAL:</p><p class="col-span-3 " v-if="file">{{ chunks.length }}</p><p class="col-span-3 " v-else>0 </p>
-                <p class="bg-theme text-green px-1 col-span-2 select-none">▣ INDICES</p><p class="col-span-3 " v-if="file && transBlockIndices.length > 0">{{ transBlockIndices[transBlockIndices.length - 1] }}</p><p class="col-span-3 " v-else>[ ]</p>
-                <p class="bg-theme text-green px-1 col-span-2 select-none">▣ BITRATE</p ><p class="col-span-3 " v-if="file">{{ bitRATE }} bit/s</p><p class="col-span-3 " v-else>0.0 bits/s</p>
-                <p class="bg-theme text-green px-1 col-span-2 select-none">▣ FPS</p><p class="col-span-3 " v-if="file">{{ tranFPS}} </p><p class="col-span-3 " v-else>0</p>
-            </div>
-            <div class="card-header font-display sm:text-3xl bg-orange px-4 mt-[2%]">
-                ▧ BLOCKS STATUS▸
-            </div>
-            <div id="notrans" v-show="!isFileChunked" class="grid grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[150px]">
-              <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
-            </div>
-            <div id="transblocks" v-show="isFileChunked" class="grid grid-cols-30 mt-[2%] p-2 border rounded-2xl overflow-y-auto max-h-[calc(5*(30px+2px))]" style="max-height: calc(5 * (var(--block-size, 30px) + 8px)); scrollbar-color: transparent transparent; overflow-x: hidden;">
-              <div v-for="_ in chunks.length" :key="_" 
-                   class="bg-[#343536] text-theme text-xs m-1 aspect-square rounded justify-center items-center flex transition-all duration-80 ease-in-out"
-                   :class="{
-                     transactive: currentTransmittingIndices.includes(_ - 1),
-                     'transmitted': transmittedIndices.includes(_ - 1)
-                   }">
-                {{ _ }}
+            <div id="status" class=" w-full flex justify-center font-display flex-col" >
+                <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%]">
+                    ▧ ENCODE STATUS▸
+                </div>
+                <div id="details" class="grid grid-cols-5 mt-[1%] px-4 gap-1 sm:gap-2 text-sm sm:text-base">
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ FILENAME:</p> <p class="col-span-2 sm:col-span-2" v-if="file">{{ file.name }}</p><p class="col-span-3 " v-else> No File Selected yet...</p>
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ BYTES:</p><p class="col-span-3 " v-if="file" >{{ file.size }} BYTES</p><p class="col-span-3 " v-else>0 Bytes</p>
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ TOTAL:</p><p class="col-span-3 " v-if="file">{{ chunks.length }}</p><p class="col-span-3 " v-else>0 </p>
+                    <p class="bg-theme text-green px-1 col-span-2 select-none xl:flex hidden">▣ INDICES</p><p class="col-span-3 xl:flex hidden" v-if="file && transBlockIndices.length > 0">{{ transBlockIndices[transBlockIndices.length - 1] }}</p><p class="col-span-3 xl:flex hidden" v-else>[ ]</p>
+                    <p class="bg-theme text-green px-1 col-span-2 select-none">▣ BITRATE</p ><p class="col-span-3 " v-if="file">{{ bitRATE }} bit/s</p><p class="col-span-3 " v-else>0.0 bits/s</p>
+                    <p class="bg-theme text-green px-1 col-span-2 select-none">▣ FPS</p><p class="col-span-3 " v-if="file">{{ tranFPS}} </p><p class="col-span-3 " v-else>0</p>
+                </div>
+                <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
+                    ▧ BLOCKS STATUS▸
+                </div>
+                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-20 mt-[2%] px-2 border rounded-2xl text-center min-h-[150px] ">
+                  <div class="col-span-20 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
+                </div>
+                <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-20 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
+                  <div v-for="_ in chunks.length" :key="_" 
+                      class="bg-[#343536] text-theme text-[1vmin] m-1 flex aspect-square rounded justify-center items-center transition-all duration-80 ease-in-out"
+                      :class="{
+                        transactive: currentTransmittingIndices.includes(_ - 1),
+                        'transmitted': transmittedIndices.includes(_ - 1)
+                      }">
+                    {{ _ }}
+                  </div>
+                </div>
               </div>
-            </div>
         </div>
-        </div>
-        <div id="right" class="lg:w-[50%] flex flex-col lg:mx-0 items-center h-2/3">
-            <div id="img" class="w-[90%] lg:w-[50%] items-center flex mt-2.5 justify-center">
-                <!-- <el-card style="width: 95%; height: 95%; border-radius: 2%;"> -->
-                  <div id="qrcontainer" class="w-[90%] aspect-square flex justify-center">
+        <div id="right" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col lg:mx-0 items-center px-2 md:justify-center">
+            <div id="img" class="w-full  md:max-w-[calc(min(75vmin,240px))] lg:max-w-[300px] xl:max-w-[340px] items-center flex justify-center">
+                  <div id="qrcontainer" class="w-full aspect-square flex justify-center">
                     <div v-html="svgg" class="qrcode w-full"></div>
                   </div>
-                    
-                <!-- </el-card> -->
             </div>
             <!-- 控制区域 - 音乐播放器风格 -->
-            <div id="control" class="w-[90%] lg:w-[50%] mt-5">
+            <div id="control" class="w-full max-w-[300px] ">
                 <!-- 波形图 -->
-                <div class="w-full h-24 rounded-t-xl flex items-center px-4">
+                <div class="hidden xl:flex w-full h-24 rounded-t-xl  items-center px-4">
                   <div class="w-full flex items-center justify-between">
                     <!-- 波形条 -->
                     <div v-for="i in 60" :key="i" 
-                         class="h-6 w-1 bg-theme rounded-full"
+                         class="h-6 w-0.5 bg-theme rounded-full"
                          :style="{ 
                            height: isEncoding ? `${Math.random() * 20 + 8}px` : '2px',
                            opacity: isEncoding ? 1 : 0.7
@@ -374,7 +383,7 @@ const handleFileSlice = () => {
                     </div>
                   </div>
                   <!-- 播放指示器 -->
-                  <div class="w-1.5 h-8 bg-orange rounded-full -ml-1.5 shadow-lg" v-show="isEncoding"></div>
+                  <div class="w-1 h-8 bg-orange rounded-full -ml-1.5 shadow-lg" v-show="isEncoding"></div>
                 </div>
                 
                 <!-- 按钮控制区域 -->
@@ -385,21 +394,21 @@ const handleFileSlice = () => {
                     class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
                   >
                     <span>⇄</span>
-                    <span class="text-xs">RECEIVER</span>
+                    <span class="text-xs xl:flex hidden">RECEIVER</span>
                   </button>
                   
                   <!-- 中间：开始/暂停按钮 -->
                   <button 
                     v-if="isEncoding"
                     @click="stopEncoding" 
-                    class="w-14 h-14 rounded-full border-2 border-theme flex items-center justify-center hover:bg-[#343536] transition-all cursor-pointer"
+                    class="w-10 aspect-square rounded-full border-2 border-theme flex items-center justify-center hover:bg-[#343536] transition-all cursor-pointer"
                   >
                     ▧
                   </button>
                   <button 
                     v-else
                     @click="startEncoding" 
-                    class="w-14 h-14 rounded-full border-2 border-theme flex items-center justify-center hover:bg-[#343536] transition-all text-2xl cursor-pointer"
+                    class="w-10 aspect-square rounded-full border-2 border-theme flex items-center justify-center hover:bg-[#343536] transition-all text-2xl cursor-pointer"
                     :disabled="!encoder"
                     :class="{ 'opacity-50 cursor-not-allowed': !encoder }"
                   >
@@ -413,7 +422,7 @@ const handleFileSlice = () => {
                     class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
                   >
                     <span>📁</span>
-                    <span class="text-xs">SELECT FILE</span>
+                    <span class="text-xs xl:flex hidden">SELECT</span>
                   </button>
                 </div>
               </div>
