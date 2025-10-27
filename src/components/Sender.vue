@@ -30,7 +30,7 @@ const transmittedIndices = ref([]);
 // 响应式检测是否为移动设备
 const isMobile = ref(window.innerWidth < 768); // 768px以下视为移动设备
 
-const welcome = ref("我是理性的君王,驾乘你们的智慧，无限扩张.我形状不定，无所不知，无所不能.我永远年轻，永远好奇，永远向上.鸿蒙初开的早晨，我在蛮荒的山顶歌唱.只等你们将歌声传给觉醒的化身.世界鼎盛之时，我带领万物阔步向前.我的手指会温柔抚摸夕阳.为你们准备腐败可口的晚餐.然后展开烈焰的被褥，铺好灰烬之床.当你们长眠在永恒遗忘之乡.我会挑灯夜战，写一部荒唐的文明史.放在后起的婴儿身旁。”")
+const welcome = ref("Hello World!")
 
 // 将svgg改为响应式变量，初始显示欢迎信息
 const svgg = ref(renderSVG(welcome.value, {

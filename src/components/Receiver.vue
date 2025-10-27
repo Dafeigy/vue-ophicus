@@ -20,7 +20,8 @@ const transBlockIndices = ref([]);
 // 摄像头相关变量
 const isCameraActive = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);
-const canvasRef = ref<HTMLCanvasElement | null>(null);
+const canvasRef = ref<HTMLCanvasElement | null>(null); // 用于扫描的canvas
+const displayCanvasRef = ref<HTMLCanvasElement | null>(null); // 用于显示的canvas
 const stream: Ref<MediaStream | null> = ref(null);
 const scanInterval: Ref<number | null> = ref(null);
 const lastScanResult = ref<string | null>(null);
@@ -122,40 +123,239 @@ const startQRCodeScanning = () => {
   
   // 每500毫秒扫描一次
   scanInterval.value = window.setInterval(() => {
+    console.log("Scaning now...")
     scanQRCode();
-  }, 500);
+  }, 50);
 };
 
 // 扫描二维码
 const scanQRCode = () => {
-  if (!videoRef.value || !canvasRef.value) return;
+  if (!videoRef.value || !canvasRef.value || !displayCanvasRef.value) return;
   
-  const canvas = canvasRef.value;
-  const ctx = canvas.getContext('2d');
+  const scanCanvas = canvasRef.value;
+  const displayCanvas = displayCanvasRef.value;
+  const scanCtx = scanCanvas.getContext('2d', {willReadFrequently: true});
+  const displayCtx = displayCanvas.getContext('2d');
   
-  if (!ctx) return;
+  if (!scanCtx || !displayCtx) return;
   
   // 设置canvas尺寸
-  canvas.width = videoRef.value.videoWidth;
-  canvas.height = videoRef.value.videoHeight;
+  const videoWidth = videoRef.value.videoWidth || 640;
+  const videoHeight = videoRef.value.videoHeight || 480;
   
-  // 绘制视频帧到canvas
-  ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height);
+  // 设置扫描canvas尺寸
+  scanCanvas.width = videoWidth;
+  scanCanvas.height = videoHeight;
+  
+  // 设置显示canvas尺寸
+  displayCanvas.width = videoWidth;
+  displayCanvas.height = videoHeight;
+  
+  // 绘制视频帧到两个canvas
+  scanCtx.drawImage(videoRef.value, 0, 0, scanCanvas.width, scanCanvas.height);
+  displayCtx.drawImage(videoRef.value, 0, 0, displayCanvas.width, displayCanvas.height);
+  
+  // 绘制扫描框到显示canvas
+  displayCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+  displayCtx.lineWidth = 2;
+  
+  // 计算扫描框位置和大小
+  const scanBoxSize = Math.min(displayCanvas.width, displayCanvas.height) * 0.7;
+  const scanBoxX = (displayCanvas.width - scanBoxSize) / 2;
+  const scanBoxY = (displayCanvas.height - scanBoxSize) / 2;
+  
+  // 绘制扫描框
+  displayCtx.strokeRect(scanBoxX, scanBoxY, scanBoxSize, scanBoxSize);
+  
+  // 绘制四个角
+  const cornerSize = 20;
+  displayCtx.lineWidth = 4;
+  
+  // 左上角
+  displayCtx.beginPath();
+  displayCtx.moveTo(scanBoxX, scanBoxY + cornerSize);
+  displayCtx.lineTo(scanBoxX, scanBoxY);
+  displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY);
+  displayCtx.stroke();
+  
+  // 右上角
+  displayCtx.beginPath();
+  displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY);
+  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY);
+  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + cornerSize);
+  displayCtx.stroke();
+  
+  // 左下角
+  displayCtx.beginPath();
+  displayCtx.moveTo(scanBoxX, scanBoxY + scanBoxSize - cornerSize);
+  displayCtx.lineTo(scanBoxX, scanBoxY + scanBoxSize);
+  displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY + scanBoxSize);
+  displayCtx.stroke();
+  
+  // 右下角
+  displayCtx.beginPath();
+  displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY + scanBoxSize);
+  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize);
+  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize - cornerSize);
+  displayCtx.stroke();
   
   // 获取图像数据
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
   
-  // 使用jsQR库扫描二维码
-  const code = jsQR(imageData.data, canvas.width, canvas.height, {
-    inversionAttempts: 'dontInvert',
+  // 使用jsQR库扫描二维码，尝试多种反转模式以提高识别率
+  const code = jsQR(imageData.data, scanCanvas.width, scanCanvas.height, {
+    inversionAttempts: 'both', // 尝试正常和反转模式
   });
   
-  // 如果扫描到二维码且结果与上次不同
-  if (code && code.data && code.data !== lastScanResult.value) {
+  // 如果扫描到二维码
+  if (code && code.data) {
     console.log('扫描到二维码:', code.data);
     lastScanResult.value = code.data;
+    
+    // 在显示canvas上标记二维码位置
+    if (code.location) {
+      displayCtx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+      displayCtx.lineWidth = 3;
+      displayCtx.beginPath();
+      
+      // 绘制二维码的四个角点连线
+      displayCtx.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+      displayCtx.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
+      displayCtx.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
+      displayCtx.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
+      displayCtx.closePath();
+      displayCtx.stroke();
+      
+      // 显示扫描成功提示
+      scanSuccess.value = true;
+      setTimeout(() => {
+        scanSuccess.value = false;
+      }, 2000); // 2秒后隐藏提示
+    }
   }
 };
+
+// 测试用变量
+const scanSuccess = ref(false);
+const testQRCodeContent = ref('Hello World!');
+const generatedQRCode = ref('');
+const directScanResult = ref('');
+const directScanStatus = ref('');
+const testCanvasRef = ref<HTMLCanvasElement | null>(null);
+
+// 生成测试用二维码
+const generateTestQRCode = () => {
+  try {
+    generatedQRCode.value = renderSVG(testQRCodeContent.value, {
+      pixelSize: 8,
+      whiteColor: '#555',
+      blackColor: '#1D1E1F',
+    });
+    console.log('测试二维码已生成:', testQRCodeContent.value);
+  } catch (error) {
+    console.error('生成二维码失败:', error);
+  }
+};
+
+// 直接从生成的二维码中识别内容
+const directScanQRCode = () => {
+  if (!testCanvasRef.value) {
+    directScanStatus.value = '❌ Canvas元素不存在';
+    return;
+  }
+  
+  const canvas = testCanvasRef.value;
+  const ctx = canvas.getContext('2d');
+  
+  if (!ctx) {
+    directScanStatus.value = '❌ 无法获取Canvas上下文';
+    return;
+  }
+  
+  try {
+    directScanStatus.value = '🔄 正在识别二维码...';
+    
+    // 创建一个临时的DOM元素来解析SVG
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = generatedQRCode.value;
+    const svgElement = tempDiv.querySelector('svg');
+    
+    if (!svgElement) {
+      directScanStatus.value = '❌ 无法获取SVG元素';
+      return;
+    }
+    
+    // 设置canvas尺寸与SVG一致
+    const svgWidth = parseInt(svgElement.getAttribute('width') || '200');
+    const svgHeight = parseInt(svgElement.getAttribute('height') || '200');
+    canvas.width = svgWidth;
+    canvas.height = svgHeight;
+    
+    // 清空canvas
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 将SVG内容绘制到canvas上
+    const image = new Image();
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+    
+    image.onload = () => {
+      try {
+        // 绘制SVG到canvas
+        ctx.drawImage(image, 0, 0);
+        
+        // 获取图像数据
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // 使用jsQR识别二维码
+        const code = jsQR(imageData.data, canvas.width, canvas.height, {
+          inversionAttempts: 'both'
+        });
+        
+        if (code && code.data) {
+          directScanResult.value = code.data;
+          directScanStatus.value = '✅ 识别成功！';
+          scanSuccess.value = true;
+          setTimeout(() => {
+            scanSuccess.value = false;
+          }, 2000);
+        } else {
+          directScanResult.value = '';
+          directScanStatus.value = '❌ 未能识别出二维码';
+        }
+        
+        // 清理
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('绘制或识别过程中出错:', error);
+        directScanStatus.value = `❌ 识别出错: ${error.message}`;
+        URL.revokeObjectURL(url);
+      }
+    };
+    
+    image.onerror = (err) => {
+      console.error('图像加载失败:', err);
+      directScanStatus.value = '❌ 图像加载失败';
+      URL.revokeObjectURL(url);
+    };
+    
+    image.src = url;
+  } catch (error) {
+    console.error('直接识别二维码失败:', error);
+    directScanStatus.value = `❌ 识别失败: ${error.message}`;
+  }
+};
+
+// 组件挂载后生成测试二维码并自动识别
+nextTick(() => {
+  generateTestQRCode();
+  // 延迟一下让SVG完全生成
+  setTimeout(() => {
+    directScanQRCode();
+  }, 100);
+});
 
 // 组件销毁时停止摄像头
 onUnmounted(() => {
@@ -214,34 +414,30 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
             <div id="camera" class="w-full  md:max-w-[calc(min(75vmin,240px))] lg:max-w-[300px] xl:max-w-[340px] items-center flex justify-center">
               <!-- 视频元素 -->
               <div class="relative w-full aspect-square bg-black rounded-lg overflow-hidden">
+                <!-- 隐藏的video元素 -->
                 <video
                   ref="videoRef"
-                  class="w-full h-full object-cover"
+                  class="hidden"
                   autoplay
                   muted
                   playsinline
                 ></video>
+                
                 <!-- 隐藏的canvas用于二维码扫描 -->
                 <canvas ref="canvasRef" class="hidden"></canvas>
                 
-                <!-- 扫描框UI -->
-                <div v-if="isCameraActive" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div class="w-3/4 h-3/4 border-2 border-green-500 rounded-md flex items-center justify-center">
-                    <div class="w-full h-full relative">
-                      <!-- 扫描角标 -->
-                      <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-green-500"></div>
-                      <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-green-500"></div>
-                      <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-green-500"></div>
-                      <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-green-500"></div>
-                    </div>
-                  </div>
-                </div>
+                <!-- 可见的canvas用于显示摄像头画面 -->
+                <canvas 
+                  ref="displayCanvasRef" 
+                  class="w-full h-full object-cover"
+                  v-show="isCameraActive"
+                ></canvas>
                 
                 <!-- 摄像头未激活提示 -->
-                <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                <!-- <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                   <div class="text-4xl mb-2">📷</div>
                   <p class="text-sm">点击下方按钮启动摄像头</p>
-                </div>
+                </div> -->
               </div>
             </div>
             <!-- 控制区域 - 音乐播放器风格 -->
@@ -255,13 +451,61 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                   <!-- <div class="w-1 h-8 bg-orange rounded-full -ml-1.5 shadow-lg" v-show="isEncoding"></div> -->
                 </div>
                 
+                <!-- 测试二维码区域 -->
+                  <div class="w-full mt-4 p-2 bg-gray-800 rounded-lg">
+                    <h4 class="text-xs text-gray-400 mb-2">测试二维码 (直接识别测试)</h4>
+                    <div class="flex justify-center">
+                      <div v-html="generatedQRCode" class="border-2 border-white p-4 bg-black aspect-square w-full"></div>
+                      <!-- 隐藏的测试canvas -->
+                      <canvas ref="testCanvasRef" class="hidden"></canvas>
+                    </div>
+                    <p class="text-center text-xs text-green mt-2">{{ testQRCodeContent }}</p>
+                    
+                    <!-- 直接识别按钮 -->
+                    <div class="mt-2 flex justify-center">
+                      <button 
+                        @click="directScanQRCode()"
+                        class="bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700"
+                      >
+                        🔍 直接识别二维码
+                      </button>
+                    </div>
+                    
+                    <!-- 直接识别状态 -->
+                    <div class="mt-2 text-xs p-2 rounded" :class="{
+                      'bg-yellow-900': directScanStatus.includes('正在'),
+                      'bg-green-700': directScanStatus.includes('成功'),
+                      'bg-red-700': directScanStatus.includes('失败') || directScanStatus.includes('出错')
+                    }">
+                      {{ directScanStatus }}
+                    </div>
+                    
+                    <!-- 直接识别结果 -->
+                    <div v-if="directScanResult" class="mt-2 text-xs bg-gray-700 p-2 rounded">
+                      <span class="text-yellow-400">识别结果:</span> {{ directScanResult }}
+                    </div>
+                    
+                    <!-- 扫描成功提示 -->
+                    <div v-if="scanSuccess" class="mt-2 text-xs bg-green-700 p-2 rounded text-white">
+                      ✅ 二维码扫描成功！
+                    </div>
+                    
+                    <!-- 对比结果 -->
+                    <div v-if="directScanResult" class="mt-2 text-xs p-2 rounded" :class="{
+                      'bg-green-800': directScanResult === testQRCodeContent,
+                      'bg-red-800': directScanResult !== testQRCodeContent
+                    }">
+                      <span class="font-bold">验证:</span> {{ directScanResult === testQRCodeContent ? '内容匹配 ✓' : '内容不匹配 ✗' }}
+                    </div>
+                  </div>
+                
                 <!-- 按钮控制区域 -->
                 <div class="w-full rounded-b-xl py-4 flex items-center justify-center space-x-5">
-                  <!-- 左侧：发送端按钮 -->
+                  <!-- 左侧：发送端切换按钮 -->
                   <el-button 
                     @click="handleSwitchMode" 
                     type="primary"
-                    size="medium"
+
                     :rounded="'rounded-full'"
                     class="flex items-center justify-center gap-2"
                   >
@@ -273,7 +517,7 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                   <el-button 
                     @click="isCameraActive ? stopCamera() : initCamera()" 
                     :type="isCameraActive ? 'danger' : 'success'"
-                    size="medium"
+
                     :rounded="'rounded-full'"
                     class="flex items-center justify-center gap-2"
                   >
