@@ -7,7 +7,10 @@ import {
 } from 'uqr'
 
 
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject } from 'vue';
+
+// 从父组件App.vue注入切换模式函数
+const handleSwitchMode = inject('handleSwitchMode') as (event: MouseEvent) => void;
 const file = ref(null);
 const chunks = ref([]);
 const transBlockIndices = ref([]);
@@ -327,17 +330,17 @@ const handleFileSlice = () => {
 </script>
 
 <template>
-    <div id="con" class="xl:aspect-video h-full w-full max-w-[1280px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
+    <div id="con" class="xl:aspect-video h-full w-full max-w-[2160px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
         <div id="left" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col xl:px-8 mb-2 lg:mb-0 overflow-hidden justify-center md:justify-start xl:justify-center">
             <div id="TODO" class="w-full py-2 xl:py-4 px-4 items-center xl:text-2xl text-xl flex text-green font-display font-bold bg-theme lg:text-3xl">
-                PROJECT OPHICULUS
+                PROJECT OPHICULUS [T]
             </div>
             <div id="status" class=" w-full flex justify-center font-display flex-col" >
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%]">
                     ▧ ENCODE STATUS▸
                 </div>
                 <div id="details" class="grid grid-cols-5 mt-[1%] px-4 gap-1 sm:gap-2 text-sm sm:text-base">
-                    <p class="bg-green text-theme px-1 col-span-2 ">▣ FILENAME:</p> <p class="col-span-2 sm:col-span-2" v-if="file">{{ file.name }}</p><p class="col-span-3 " v-else> No File Selected yet...</p>
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ FILENAME:</p> <p class="col-span-2 sm:col-span-2 truncate overflow-hidden whitespace-nowrap" v-if="file">{{ file.name }}</p><p class="col-span-3 " v-else> No File Selected yet...</p>
                     <p class="bg-green text-theme px-1 col-span-2 ">▣ BYTES:</p><p class="col-span-3 " v-if="file" >{{ file.size }} BYTES</p><p class="col-span-3 " v-else>0 Bytes</p>
                     <p class="bg-green text-theme px-1 col-span-2 ">▣ TOTAL:</p><p class="col-span-3 " v-if="file">{{ chunks.length }}</p><p class="col-span-3 " v-else>0 </p>
                     <p class="bg-theme text-green px-1 col-span-2 select-none xl:flex hidden">▣ INDICES</p><p class="col-span-3 xl:flex hidden" v-if="file && transBlockIndices.length > 0">{{ transBlockIndices[transBlockIndices.length - 1] }}</p><p class="col-span-3 xl:flex hidden" v-else>[ ]</p>
@@ -347,10 +350,10 @@ const handleFileSlice = () => {
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
                     ▧ BLOCKS STATUS▸
                 </div>
-                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-20 mt-[2%] px-2 border rounded-2xl text-center min-h-[150px] ">
-                  <div class="col-span-20 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
+                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[150px]">
+                  <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
                 </div>
-                <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-20 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
+                <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
                   <div v-for="_ in chunks.length" :key="_" 
                       class="bg-[#343536] text-theme text-[1vmin] m-1 flex aspect-square rounded justify-center items-center transition-all duration-80 ease-in-out"
                       :class="{
@@ -389,8 +392,8 @@ const handleFileSlice = () => {
                 <!-- 按钮控制区域 -->
                 <div class="w-full rounded-b-xl py-4 flex items-center justify-center space-x-5">
                   <!-- 左侧：接收端按钮 -->
-                  <button 
-                    @click="handleFileSlice" 
+                  <button
+                    @click="handleSwitchMode" 
                     class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
                   >
                     <span>⇄</span>
@@ -427,8 +430,6 @@ const handleFileSlice = () => {
                 </div>
               </div>
             </div>
-        
-        
     </div>
 </template>
 

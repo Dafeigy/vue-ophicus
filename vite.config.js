@@ -11,6 +11,10 @@ export default defineConfig({
     tailwindcss(),
     
   ],
+  devServer: {
+  host: '192.168.31.240',
+  https: true, // 是否https
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
