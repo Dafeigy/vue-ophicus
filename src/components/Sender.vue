@@ -365,8 +365,8 @@ const handleFileSlice = () => {
                 </div>
               </div>
         </div>
-        <div id="right" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col lg:mx-0 items-center px-2 md:justify-center">
-            <div id="img" class="w-full  md:max-w-[calc(min(75vmin,240px))] lg:max-w-[300px] xl:max-w-[340px] items-center flex justify-center">
+        <div id="right" class="w-4/5 h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col lg:mx-0 items-center px-2 md:justify-center">
+            <div id="img" class="w-full md:max-w-[calc(min(75vmin,240px))] lg:max-w-[300px] xl:max-w-[340px] items-center flex justify-center">
                   <div id="qrcontainer" class="w-full aspect-square flex justify-center">
                     <div v-html="svgg" class="qrcode w-full"></div>
                   </div>

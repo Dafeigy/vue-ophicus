@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import jsQR from "jsqr";
+import QrScanner from 'qr-scanner'; 
+
 import { encode, decode } from 'js-base64';
 import {
   renderSVG,
@@ -25,6 +26,7 @@ const displayCanvasRef = ref<HTMLCanvasElement | null>(null); // 用于显示的
 const stream: Ref<MediaStream | null> = ref(null);
 const scanInterval: Ref<number | null> = ref(null);
 const lastScanResult = ref<string | null>(null);
+const qrScanner: Ref<QrScanner | null> = ref(null);
 
 // 初始化摄像头
 const initCamera = async () => {
@@ -97,6 +99,14 @@ const initCamera = async () => {
 
 // 停止摄像头
 const stopCamera = () => {
+  // 停止QR Scanner
+  if (qrScanner.value) {
+    qrScanner.value.stop();
+    qrScanner.value.destroy();
+    qrScanner.value = null;
+  }
+  
+  // 清除扫描间隔
   if (scanInterval.value) {
     clearInterval(scanInterval.value);
     scanInterval.value = null;
@@ -117,122 +127,195 @@ const stopCamera = () => {
 
 // 开始扫描二维码
 const startQRCodeScanning = () => {
-  if (scanInterval.value) {
-    clearInterval(scanInterval.value);
+  // 停止之前的扫描器
+  if (qrScanner.value) {
+    qrScanner.value.stop();
+    qrScanner.value.destroy();
+    qrScanner.value = null;
   }
   
-  // 每500毫秒扫描一次
+  // 清除之前的扫描间隔
+  if (scanInterval.value) {
+    clearInterval(scanInterval.value);
+    scanInterval.value = null;
+  }
+  
+  // 启动显示摄像头画面的更新
+  updateDisplayCanvas();
+  
+  // 每50毫秒扫描一次
   scanInterval.value = window.setInterval(() => {
-    console.log("Scaning now...")
+    console.log("Scaning now...");
     scanQRCode();
   }, 50);
 };
 
 // 扫描二维码
-const scanQRCode = () => {
+const scanQRCode = async () => {
   if (!videoRef.value || !canvasRef.value || !displayCanvasRef.value) return;
   
   const scanCanvas = canvasRef.value;
   const displayCanvas = displayCanvasRef.value;
-  const scanCtx = scanCanvas.getContext('2d', {willReadFrequently: true});
-  const displayCtx = displayCanvas.getContext('2d');
+  const ctx = scanCanvas.getContext('2d', {willReadFrequently: true});
   
-  if (!scanCtx || !displayCtx) return;
+  if (!ctx) return;
   
   // 设置canvas尺寸
   const videoWidth = videoRef.value.videoWidth || 640;
   const videoHeight = videoRef.value.videoHeight || 480;
   
-  // 设置扫描canvas尺寸
   scanCanvas.width = videoWidth;
   scanCanvas.height = videoHeight;
+  
+  // 绘制当前视频帧到canvas
+  ctx.drawImage(videoRef.value, 0, 0, scanCanvas.width, scanCanvas.height);
+  
+  // 计算扫描框位置和大小（与updateDisplayCanvas中的计算保持一致）
+  const scanBoxSize = Math.min(scanCanvas.width, scanCanvas.height) * 0.7;
+  const scanBoxX = (scanCanvas.width - scanBoxSize) / 2;
+  const scanBoxY = (scanCanvas.height - scanBoxSize) / 2;
+  
+  // 创建一个临时canvas用于裁剪扫描框内的图像
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = scanBoxSize;
+  tempCanvas.height = scanBoxSize;
+  const tempCtx = tempCanvas.getContext('2d');
+  
+  if (!tempCtx) return;
+  
+  try {
+    // 从原canvas裁剪出扫描框内的图像
+    tempCtx.drawImage(
+      scanCanvas, 
+      scanBoxX, scanBoxY, scanBoxSize, scanBoxSize, // 源区域
+      0, 0, scanBoxSize, scanBoxSize // 目标区域
+    );
+    
+    // 使用qr-scanner识别裁剪后的图像中的二维码
+    const result = await QrScanner.scanImage(tempCanvas, {
+      returnDetailedScanResult: true
+    });
+    
+    if (result && result.data) {
+      console.log('扫描到二维码:', result.data);
+      lastScanResult.value = result.data;
+      
+      // 在显示canvas上标记二维码位置（需要将裁剪后的坐标转换回原始坐标）
+      const displayCtx = displayCanvas.getContext('2d');
+      if (displayCtx && (result as any).location) {
+        displayCtx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+        displayCtx.lineWidth = 3;
+        displayCtx.beginPath();
+        
+        // 转换坐标：裁剪区域内的坐标 + 裁剪区域的偏移量
+        displayCtx.moveTo(
+          (result as any).location.topLeftCorner.x + scanBoxX,
+          (result as any).location.topLeftCorner.y + scanBoxY
+        );
+        displayCtx.lineTo(
+          (result as any).location.topRightCorner.x + scanBoxX,
+          (result as any).location.topRightCorner.y + scanBoxY
+        );
+        displayCtx.lineTo(
+          (result as any).location.bottomRightCorner.x + scanBoxX,
+          (result as any).location.bottomRightCorner.y + scanBoxY
+        );
+        displayCtx.lineTo(
+          (result as any).location.bottomLeftCorner.x + scanBoxX,
+          (result as any).location.bottomLeftCorner.y + scanBoxY
+        );
+        displayCtx.closePath();
+        displayCtx.stroke();
+        
+        // 显示扫描成功提示
+        scanSuccess.value = true;
+        setTimeout(() => {
+          scanSuccess.value = false;
+        }, 2000); // 2秒后隐藏提示
+      }
+    }
+  } catch (error) {
+    // 解码错误，继续下一次扫描
+    // console.error('二维码扫描错误:', error);
+  } finally {
+    // 清理临时canvas（虽然GC会处理，但显式清理是好习惯）
+    tempCanvas.remove();
+  }
+};
+
+// 更新显示canvas，显示摄像头画面
+const updateDisplayCanvas = () => {
+  if (!videoRef.value || !displayCanvasRef.value) return;
+  
+  const displayCanvas = displayCanvasRef.value;
+  const displayCtx = displayCanvas.getContext('2d');
+  
+  if (!displayCtx) return;
+  
+  // 设置canvas尺寸
+  const videoWidth = videoRef.value.videoWidth || 640;
+  const videoHeight = videoRef.value.videoHeight || 480;
   
   // 设置显示canvas尺寸
   displayCanvas.width = videoWidth;
   displayCanvas.height = videoHeight;
   
-  // 绘制视频帧到两个canvas
-  scanCtx.drawImage(videoRef.value, 0, 0, scanCanvas.width, scanCanvas.height);
-  displayCtx.drawImage(videoRef.value, 0, 0, displayCanvas.width, displayCanvas.height);
-  
-  // 绘制扫描框到显示canvas
-  displayCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-  displayCtx.lineWidth = 2;
-  
-  // 计算扫描框位置和大小
-  const scanBoxSize = Math.min(displayCanvas.width, displayCanvas.height) * 0.7;
-  const scanBoxX = (displayCanvas.width - scanBoxSize) / 2;
-  const scanBoxY = (displayCanvas.height - scanBoxSize) / 2;
-  
-  // 绘制扫描框
-  displayCtx.strokeRect(scanBoxX, scanBoxY, scanBoxSize, scanBoxSize);
-  
-  // 绘制四个角
-  const cornerSize = 20;
-  displayCtx.lineWidth = 4;
-  
-  // 左上角
-  displayCtx.beginPath();
-  displayCtx.moveTo(scanBoxX, scanBoxY + cornerSize);
-  displayCtx.lineTo(scanBoxX, scanBoxY);
-  displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY);
-  displayCtx.stroke();
-  
-  // 右上角
-  displayCtx.beginPath();
-  displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY);
-  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY);
-  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + cornerSize);
-  displayCtx.stroke();
-  
-  // 左下角
-  displayCtx.beginPath();
-  displayCtx.moveTo(scanBoxX, scanBoxY + scanBoxSize - cornerSize);
-  displayCtx.lineTo(scanBoxX, scanBoxY + scanBoxSize);
-  displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY + scanBoxSize);
-  displayCtx.stroke();
-  
-  // 右下角
-  displayCtx.beginPath();
-  displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY + scanBoxSize);
-  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize);
-  displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize - cornerSize);
-  displayCtx.stroke();
-  
-  // 获取图像数据
-  const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-  
-  // 使用jsQR库扫描二维码，尝试多种反转模式以提高识别率
-  const code = jsQR(imageData.data, scanCanvas.width, scanCanvas.height, {
-    inversionAttempts: 'both', // 尝试正常和反转模式
-  });
-  
-  // 如果扫描到二维码
-  if (code && code.data) {
-    console.log('扫描到二维码:', code.data);
-    lastScanResult.value = code.data;
+  // 绘制视频帧到canvas
+  const drawVideo = () => {
+    if (!isCameraActive.value || !videoRef.value) return;
     
-    // 在显示canvas上标记二维码位置
-    if (code.location) {
-      displayCtx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
-      displayCtx.lineWidth = 3;
-      displayCtx.beginPath();
-      
-      // 绘制二维码的四个角点连线
-      displayCtx.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-      displayCtx.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
-      displayCtx.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
-      displayCtx.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
-      displayCtx.closePath();
-      displayCtx.stroke();
-      
-      // 显示扫描成功提示
-      scanSuccess.value = true;
-      setTimeout(() => {
-        scanSuccess.value = false;
-      }, 2000); // 2秒后隐藏提示
+    displayCtx.drawImage(videoRef.value, 0, 0, displayCanvas.width, displayCanvas.height);
+    
+    // 绘制扫描框到显示canvas
+    displayCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+    displayCtx.lineWidth = 2;
+    
+    // 计算扫描框位置和大小
+    const scanBoxSize = Math.min(displayCanvas.width, displayCanvas.height) * 0.7;
+    const scanBoxX = (displayCanvas.width - scanBoxSize) / 2;
+    const scanBoxY = (displayCanvas.height - scanBoxSize) / 2;
+    
+    // 绘制扫描框
+    displayCtx.strokeRect(scanBoxX, scanBoxY, scanBoxSize, scanBoxSize);
+    
+    // 绘制四个角
+    const cornerSize = 20;
+    displayCtx.lineWidth = 4;
+    
+    // 左上角
+    displayCtx.beginPath();
+    displayCtx.moveTo(scanBoxX, scanBoxY + cornerSize);
+    displayCtx.lineTo(scanBoxX, scanBoxY);
+    displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY);
+    displayCtx.stroke();
+    
+    // 右上角
+    displayCtx.beginPath();
+    displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY);
+    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY);
+    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + cornerSize);
+    displayCtx.stroke();
+    
+    // 左下角
+    displayCtx.beginPath();
+    displayCtx.moveTo(scanBoxX, scanBoxY + scanBoxSize - cornerSize);
+    displayCtx.lineTo(scanBoxX, scanBoxY + scanBoxSize);
+    displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY + scanBoxSize);
+    displayCtx.stroke();
+    
+    // 右下角
+    displayCtx.beginPath();
+    displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY + scanBoxSize);
+    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize);
+    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize - cornerSize);
+    displayCtx.stroke();
+    
+    if (isCameraActive.value) {
+      requestAnimationFrame(drawVideo);
     }
-  }
+  };
+  
+  requestAnimationFrame(drawVideo);
 };
 
 // 测试用变量
@@ -301,21 +384,18 @@ const directScanQRCode = () => {
     const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
     const url = URL.createObjectURL(svgBlob);
     
-    image.onload = () => {
+    image.onload = async () => {
       try {
         // 绘制SVG到canvas
         ctx.drawImage(image, 0, 0);
         
-        // 获取图像数据
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // 使用jsQR识别二维码
-        const code = jsQR(imageData.data, canvas.width, canvas.height, {
-          inversionAttempts: 'both'
+        // 使用qr-scanner识别canvas中的二维码
+        const result = await QrScanner.scanImage(canvas, {
+          returnDetailedScanResult: false
         });
         
-        if (code && code.data) {
-          directScanResult.value = code.data;
+        if (result) {
+          directScanResult.value = result;
           directScanStatus.value = '✅ 识别成功！';
           scanSuccess.value = true;
           setTimeout(() => {
@@ -330,7 +410,7 @@ const directScanQRCode = () => {
         URL.revokeObjectURL(url);
       } catch (error) {
         console.error('绘制或识别过程中出错:', error);
-        directScanStatus.value = `❌ 识别出错: ${error.message}`;
+        directScanStatus.value = `❌ 识别出错: ${error instanceof Error ? error.message : String(error)}`;
         URL.revokeObjectURL(url);
       }
     };
@@ -344,7 +424,7 @@ const directScanQRCode = () => {
     image.src = url;
   } catch (error) {
     console.error('直接识别二维码失败:', error);
-    directScanStatus.value = `❌ 识别失败: ${error.message}`;
+    directScanStatus.value = `❌ 识别失败: ${error instanceof Error ? error.message : String(error)}`;
   }
 };
 
@@ -432,12 +512,6 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                   class="w-full h-full object-cover"
                   v-show="isCameraActive"
                 ></canvas>
-                
-                <!-- 摄像头未激活提示 -->
-                <!-- <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                  <div class="text-4xl mb-2">📷</div>
-                  <p class="text-sm">点击下方按钮启动摄像头</p>
-                </div> -->
               </div>
             </div>
             <!-- 控制区域 - 音乐播放器风格 -->
@@ -452,67 +526,25 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                 </div>
                 
                 <!-- 测试二维码区域 -->
-                  <div class="w-full mt-4 p-2 bg-gray-800 rounded-lg">
-                    <h4 class="text-xs text-gray-400 mb-2">测试二维码 (直接识别测试)</h4>
-                    <div class="flex justify-center">
-                      <div v-html="generatedQRCode" class="border-2 border-white p-4 bg-black aspect-square w-full"></div>
-                      <!-- 隐藏的测试canvas -->
-                      <canvas ref="testCanvasRef" class="hidden"></canvas>
-                    </div>
-                    <p class="text-center text-xs text-green mt-2">{{ testQRCodeContent }}</p>
-                    
-                    <!-- 直接识别按钮 -->
-                    <div class="mt-2 flex justify-center">
-                      <button 
-                        @click="directScanQRCode()"
-                        class="bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700"
-                      >
-                        🔍 直接识别二维码
-                      </button>
-                    </div>
-                    
-                    <!-- 直接识别状态 -->
-                    <div class="mt-2 text-xs p-2 rounded" :class="{
-                      'bg-yellow-900': directScanStatus.includes('正在'),
-                      'bg-green-700': directScanStatus.includes('成功'),
-                      'bg-red-700': directScanStatus.includes('失败') || directScanStatus.includes('出错')
-                    }">
-                      {{ directScanStatus }}
-                    </div>
-                    
-                    <!-- 直接识别结果 -->
-                    <div v-if="directScanResult" class="mt-2 text-xs bg-gray-700 p-2 rounded">
-                      <span class="text-yellow-400">识别结果:</span> {{ directScanResult }}
-                    </div>
-                    
-                    <!-- 扫描成功提示 -->
-                    <div v-if="scanSuccess" class="mt-2 text-xs bg-green-700 p-2 rounded text-white">
-                      ✅ 二维码扫描成功！
-                    </div>
-                    
-                    <!-- 对比结果 -->
-                    <div v-if="directScanResult" class="mt-2 text-xs p-2 rounded" :class="{
-                      'bg-green-800': directScanResult === testQRCodeContent,
-                      'bg-red-800': directScanResult !== testQRCodeContent
-                    }">
-                      <span class="font-bold">验证:</span> {{ directScanResult === testQRCodeContent ? '内容匹配 ✓' : '内容不匹配 ✗' }}
-                    </div>
-                  </div>
+                  
                 
                 <!-- 按钮控制区域 -->
                 <div class="w-full rounded-b-xl py-4 flex items-center justify-center space-x-5">
                   <!-- 左侧：发送端切换按钮 -->
-                  <el-button 
+                  <button
                     @click="handleSwitchMode" 
-                    type="primary"
-
-                    :rounded="'rounded-full'"
-                    class="flex items-center justify-center gap-2"
+                    class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
                   >
                     <span>⇄</span>
                     <span class="text-xs xl:flex hidden">SENDER</span>
-                  </el-button>
-                  
+                  </button>
+                  <button
+                    @click="handleSwitchMode" 
+                    class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
+                  >
+                    <span>{{ isCameraActive ? '🔴' : '🟢' }}</span>
+                    <span class="text-xs xl:flex hidden">{{ isCameraActive ? 'OFF' : 'ON' }}</span>
+                  </button>
                   <!-- 右侧：摄像头控制按钮 -->
                   <el-button 
                     @click="isCameraActive ? stopCamera() : initCamera()" 
@@ -521,8 +553,7 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                     :rounded="'rounded-full'"
                     class="flex items-center justify-center gap-2"
                   >
-                    <span>{{ isCameraActive ? '🔴' : '🟢' }}</span>
-                    <span class="text-xs xl:flex hidden">{{ isCameraActive ? '关闭摄像头' : '启动摄像头' }}</span>
+                    
                   </el-button>
                 </div>
               </div>
