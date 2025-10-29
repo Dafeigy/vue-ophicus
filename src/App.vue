@@ -33,7 +33,7 @@ provide('handleSwitchMode', handleSwitchMode)
      <div class="flex items-center justify-center w-2/3 lg:w-1/4 aspect-square flex-col">
       <Camera @qr-scanned="handleQRScanned" @camera-error="error => scanResult.value = `错误: ${error}`"/>
       <div id="debug" class="flex justify-center mt-2">
-        <div id="debug-info" class="text-[1vmin] text-[#eeeddd] bg-[#333] px-3 py-1.5 rounded-lg min-w-[200px] text-center">
+        <div id="debug-info" class="text-xs text-[#eeeddd] bg-[#333] px-3 py-1.5 rounded-lg min-w-[200px] text-center">
           {{ scanResult || '等待扫描结果...' }}
         </div>
       </div>

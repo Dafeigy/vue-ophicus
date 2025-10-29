@@ -40,6 +40,21 @@ watch(() => props.width, (newWidth) => {
 // 初始化摄像头
 const initCamera = async () => {
   try {
+    console.log("初始化摄像头...");
+    
+    // 等待DOM完全挂载
+    await nextTick();
+    console.log('nextTick完成，检查ref绑定:', {
+      videoRefExists: !!videoRef.value,
+      canvasRefExists: !!canvasRef.value,
+      displayCanvasRefExists: !!displayCanvasRef.value
+    });
+    
+    if (!videoRef.value) {
+      console.error('错误: videoRef未正确绑定到DOM元素');
+      emit('cameraError', '摄像头组件初始化失败');
+      return;
+    }
     // 检查浏览器兼容性
     const navigator = window.navigator;
     const getUserMedia = navigator.mediaDevices?.getUserMedia ||
@@ -77,18 +92,39 @@ const initCamera = async () => {
       }
     });
 
-    // 显示视频流
-    await nextTick();
+    // 显示视频流 - 这里我们已经确认过videoRef存在了
     if (videoRef.value) {
       videoRef.value.srcObject = stream.value;
-      videoRef.value.play();
+      
+      // 监听视频加载完成事件
+      videoRef.value.onloadeddata = () => {
+        console.log('视频流加载完成，开始播放');
+        videoRef.value?.play().catch(e => console.error('播放视频失败:', e));
+        
+        // 确保在视频加载完成后开始扫描和渲染
+        isCameraActive.value = true;
+        console.log('摄像头已成功启动');
+        
+        // 开始扫描二维码
+        startQRCodeScanning();
+      };
+      
+      // 监听视频播放事件
+      videoRef.value.onplay = () => {
+        console.log('视频开始播放');
+      };
+      
+      // 监听错误事件
+      videoRef.value.onerror = (e) => {
+        console.error('视频播放错误:', e);
+        emit('cameraError', '视频播放失败');
+      };
+    } else {
+      // 如果video元素不存在，仍然需要激活状态以避免UI问题
+      console.log("Video doesn't exsist.")
+      isCameraActive.value = true;
+      startQRCodeScanning();
     }
-    
-    isCameraActive.value = true;
-    console.log('摄像头已成功启动');
-    
-    // 开始扫描二维码
-    startQRCodeScanning();
   } catch (error) {
     console.error('启动摄像头失败:', error);
     let errorMessage = '启动摄像头失败';
@@ -247,91 +283,130 @@ const scanQRCode = async () => {
 
 // 更新显示canvas，显示摄像头画面
 const updateDisplayCanvas = () => {
-  if (!videoRef.value || !displayCanvasRef.value) return;
+  console.log('updateDisplayCanvas调用，检查ref:', {
+    videoRefExists: !!videoRef.value,
+    displayCanvasRefExists: !!displayCanvasRef.value
+  });
+  
+  if (!videoRef.value || !displayCanvasRef.value) {
+    console.error('updateDisplayCanvas: 缺少必要的ref引用');
+    return;
+  }
   
   const displayCanvas = displayCanvasRef.value;
   const displayCtx = displayCanvas.getContext('2d');
   
   if (!displayCtx) return;
   
-  // 设置canvas尺寸
-  const videoWidth = videoRef.value.videoWidth || 640;
-  const videoHeight = videoRef.value.videoHeight || 480;
+  // 确保canvas尺寸与视频元素匹配
+  const updateCanvasSize = () => {
+    if (!videoRef.value) return;
+    
+    const videoWidth = videoRef.value.videoWidth || 640;
+    const videoHeight = videoRef.value.videoHeight || 480;
+    
+    // 只有当尺寸变化时才更新canvas尺寸
+    if (displayCanvas.width !== videoWidth || displayCanvas.height !== videoHeight) {
+      displayCanvas.width = videoWidth;
+      displayCanvas.height = videoHeight;
+      console.log(`Canvas尺寸更新为: ${videoWidth}x${videoHeight}`);
+    }
+  };
   
-  // 设置显示canvas尺寸
-  displayCanvas.width = videoWidth;
-  displayCanvas.height = videoHeight;
+  // 初始更新尺寸
+  updateCanvasSize();
   
   // 绘制视频帧到canvas
   const drawVideo = () => {
     if (!isCameraActive.value || !videoRef.value) return;
     
-    displayCtx.drawImage(videoRef.value, 0, 0, displayCanvas.width, displayCanvas.height);
+    try {
+      // 更新尺寸以适应视频尺寸变化
+      updateCanvasSize();
+      
+      // 绘制视频帧
+      displayCtx.drawImage(videoRef.value, 0, 0, displayCanvas.width, displayCanvas.height);
+      
+      // 绘制扫描框到显示canvas
+      displayCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+      displayCtx.lineWidth = 2;
+      
+      // 计算扫描框位置和大小（中间70%的区域）
+      const scanBoxSize = Math.min(displayCanvas.width, displayCanvas.height) * 0.7;
+      const scanBoxX = (displayCanvas.width - scanBoxSize) / 2;
+      const scanBoxY = (displayCanvas.height - scanBoxSize) / 2;
+      
+      // 绘制扫描框
+      displayCtx.strokeRect(scanBoxX, scanBoxY, scanBoxSize, scanBoxSize);
+      
+      // 绘制四个角
+      const cornerSize = 20;
+      displayCtx.lineWidth = 4;
+      
+      // 左上角
+      displayCtx.beginPath();
+      displayCtx.moveTo(scanBoxX, scanBoxY + cornerSize);
+      displayCtx.lineTo(scanBoxX, scanBoxY);
+      displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY);
+      displayCtx.stroke();
+      
+      // 右上角
+      displayCtx.beginPath();
+      displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY);
+      displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY);
+      displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + cornerSize);
+      displayCtx.stroke();
+      
+      // 左下角
+      displayCtx.beginPath();
+      displayCtx.moveTo(scanBoxX, scanBoxY + scanBoxSize - cornerSize);
+      displayCtx.lineTo(scanBoxX, scanBoxY + scanBoxSize);
+      displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY + scanBoxSize);
+      displayCtx.stroke();
+      
+      // 右下角
+      displayCtx.beginPath();
+      displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY + scanBoxSize);
+      displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize);
+      displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize - cornerSize);
+      displayCtx.stroke();
+    } catch (error) {
+      console.error('绘制视频帧失败:', error);
+    }
     
-    // 绘制扫描框到显示canvas
-    displayCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-    displayCtx.lineWidth = 2;
-    
-    // 计算扫描框位置和大小（中间70%的区域）
-    const scanBoxSize = Math.min(displayCanvas.width, displayCanvas.height) * 0.7;
-    const scanBoxX = (displayCanvas.width - scanBoxSize) / 2;
-    const scanBoxY = (displayCanvas.height - scanBoxSize) / 2;
-    
-    // 绘制扫描框
-    displayCtx.strokeRect(scanBoxX, scanBoxY, scanBoxSize, scanBoxSize);
-    
-    // 绘制四个角
-    const cornerSize = 20;
-    displayCtx.lineWidth = 4;
-    
-    // 左上角
-    displayCtx.beginPath();
-    displayCtx.moveTo(scanBoxX, scanBoxY + cornerSize);
-    displayCtx.lineTo(scanBoxX, scanBoxY);
-    displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY);
-    displayCtx.stroke();
-    
-    // 右上角
-    displayCtx.beginPath();
-    displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY);
-    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY);
-    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + cornerSize);
-    displayCtx.stroke();
-    
-    // 左下角
-    displayCtx.beginPath();
-    displayCtx.moveTo(scanBoxX, scanBoxY + scanBoxSize - cornerSize);
-    displayCtx.lineTo(scanBoxX, scanBoxY + scanBoxSize);
-    displayCtx.lineTo(scanBoxX + cornerSize, scanBoxY + scanBoxSize);
-    displayCtx.stroke();
-    
-    // 右下角
-    displayCtx.beginPath();
-    displayCtx.moveTo(scanBoxX + scanBoxSize - cornerSize, scanBoxY + scanBoxSize);
-    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize);
-    displayCtx.lineTo(scanBoxX + scanBoxSize, scanBoxY + scanBoxSize - cornerSize);
-    displayCtx.stroke();
-    
+    // 继续下一帧
     if (isCameraActive.value) {
       requestAnimationFrame(drawVideo);
     }
   };
   
+  // 启动动画循环
+  console.log('开始渲染视频画面');
   requestAnimationFrame(drawVideo);
 };
 
 // 点击组件时切换摄像头状态
-const toggleCamera = () => {
+const toggleCamera = async () => {
   if (isCameraActive.value) {
     stopCamera();
   } else {
+    // 确保DOM已完全挂载
+    await nextTick();
+    console.log('点击切换摄像头状态，检查ref:', {
+      videoRefExists: !!videoRef.value
+    });
     initCamera();
   }
 };
 
 // 暴露方法给父组件
-const start = () => {
+const start = async () => {
   if (!isCameraActive.value) {
+    // 确保DOM已完全挂载
+    await nextTick();
+    console.log('通过API启动摄像头，检查ref:', {
+      videoRefExists: !!videoRef.value
+    });
     initCamera();
   }
 };
@@ -375,11 +450,14 @@ onUnmounted(() => {
     <div v-else class="relative w-full h-full">
       <!-- 隐藏的video元素 -->
       <video
+        id="cameraVideo"
         ref="videoRef"
-        class="hidden"
+        class="hidden absolute top-0 left-0 w-full h-full"
         autoplay
         muted
         playsinline
+        preload="auto"
+        tabindex="-1"
       ></video>
       
       <!-- 隐藏的canvas用于二维码扫描 -->
@@ -388,7 +466,7 @@ onUnmounted(() => {
       <!-- 可见的canvas用于显示摄像头画面 -->
       <canvas 
         ref="displayCanvasRef" 
-        class="w-full h-full object-cover"
+        class="w-full h-full object-cover absolute top-0 left-0 z-0"
       ></canvas>
       
       <!-- 扫描成功提示 -->
@@ -432,5 +510,28 @@ canvas {
   display: block;
   max-width: 100%;
   max-height: 100%;
+  object-fit: cover;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* 容器样式优化 */
+.relative {
+  position: relative;
+}
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+/* 视频元素隐藏但保持功能 */
+.hidden {
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 </style>
