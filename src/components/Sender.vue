@@ -45,17 +45,23 @@ import init, { LubyTransformEncoder } from '../../wasm/luby_transform.js';
 let encoder = null;
 let isWasmInitialized = false;
 
+// 窗口大小变化处理函数
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768;
+};
 
 // 初始化WASM模块和响应式布局
 onMounted(async () => {
   try {
     await init();
     isWasmInitialized = true;
-    console.log('Luby Transform WASM module initialized successfully');
+    console.log('Luby Transform WASM initialized successfully');
   } catch (error) {
     console.error('Failed to initialize WASM module:', error);
   }
-
+  
+  // 添加窗口大小变化监听
+  window.addEventListener('resize', handleResize);
 });
 
 function blobToBase64(blob) {
@@ -194,7 +200,8 @@ function stopEncoding() {
 // 组件卸载时确保清理所有资源
 onUnmounted(() => {
   stopEncoding();
-
+  // 移除窗口大小变化监听
+  window.removeEventListener('resize', handleResize);
 });
 
 
@@ -209,8 +216,8 @@ const handleFileClick = async() => {
     transmittedIndices.value = [];
     currentTransmittingIndices.value = [];
     transBlockIndices.value = [];
-    const filename = file.value.name;
-    console.log(filename) 
+    console.log(file.value)
+    
     // 1. 先将整个文件转换为Base64字符串
     const fullBase64 = await blobToBase64(file.value);
     
@@ -230,18 +237,12 @@ const handleFileClick = async() => {
       
       // 将二进制字符串转换回Base64
       const base64String = btoa(chunkBinary);
-      const block_data = JSON.stringify({
-        filename,
-        index: i,
-        total: chunks.value.length,
-        data: base64String
-      });
-      chunks.value.push(block_data);
+      chunks.value.push(base64String);
     }
 
-    // console.log('Block Counts:', chunks.value.length);
-    // console.log('Block Size:', JSON.parse(chunks.value[0]).data?.length); // 所有切片长度相等
-    // console.log('Blocks[0]:', chunks.value[0]); 
+    // console.log('文件切片数量:', chunks.value.length);
+    // console.log('每个切片长度:', chunks.value[0]?.length); // 所有切片长度相等
+    // console.log('首个文件切片:', chunks.value[0]); 
     
     // 初始化Luby Transform编码器
     initializeLubyTransformEncoder();
@@ -262,7 +263,6 @@ function initializeLubyTransformEncoder() {
     // 使用chunks作为源数据块初始化编码器，将字符串seed转换为BigInt
     encoder = new LubyTransformEncoder(chunks.value, BigInt(parseInt(seed.value)));
     console.log('Luby Transform encoder initialized with', encoder.source_block_count(), 'source blocks');
-    
   } catch (error) {
     console.error('Failed to initialize Luby Transform encoder:', error);
   }
@@ -292,12 +292,12 @@ function initializeLubyTransformEncoder() {
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
                     ▧ BLOCKS STATUS▸
                 </div>
-                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-md text-center min-h-[calc(50% - 10px)] sm:max-h-[100px] md:min-h-[150px]">
-                  <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
+                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 text-center min-h-[150px]">
+                  <div class="col-span-30 flex items-center justify-start text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
                 </div>
-                <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
+                <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
                   <div v-for="_ in chunks.length" :key="_" 
-                      class="bg-[#343536] text-theme text-[1vmin] m-1 flex aspect-square rounded justify-center items-center transition-all duration-80 ease-in-out"
+                      class="bg-[#343536] text-theme text-[1vmin] font-sheikah m-1 flex aspect-square rounded justify-center items-center transition-all duration-80 ease-in-out"
                       :class="{
                         transactive: currentTransmittingIndices.includes(_ - 1),
                         'transmitted': transmittedIndices.includes(_ - 1)
