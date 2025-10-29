@@ -391,11 +391,10 @@ const directScanQRCode = () => {
         
         // 使用qr-scanner识别canvas中的二维码
         const result = await QrScanner.scanImage(canvas, {
-          returnDetailedScanResult: false as const
-        });
+          returnDetailedScanResult: true });
         
         if (result) {
-          directScanResult.value = result;
+          directScanResult.value = result.data;
           directScanStatus.value = '✅ 识别成功！';
           scanSuccess.value = true;
           setTimeout(() => {

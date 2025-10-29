@@ -219,23 +219,23 @@ const stopCamera = () => {
           
           // 识别二维码
           const result = await QrScanner.scanImage(tempCanvas, {
-            returnDetailedScanResult: false as const
+            returnDetailedScanResult: true
           });
           
           if (result) {
             console.log('扫描到二维码:', result);
             
             // 避免重复触发相同的结果
-            if (lastScanResult.value !== result) {
-              lastScanResult.value = result;
-              emit('qrScanned', result);
-              emit('qrCodeDetected', result);
+            if (lastScanResult.value !== result.data) {
+              lastScanResult.value = result.data;
+              emit('qrScanned', result.data);
+              emit('qrCodeDetected', result.data);
               
               // 直接更新debug-info div（作为备用方案）
               setTimeout(() => {
                 const debugInfoDiv = document.getElementById('debug-info');
                 if (debugInfoDiv) {
-                  debugInfoDiv.textContent = `识别结果: ${result}`;
+                  debugInfoDiv.textContent = `识别结果: ${result.data   }`;
                   console.log('已更新debug-info div:', result);
                 }
               }, 0);
@@ -418,11 +418,9 @@ defineExpose({
     <!-- 摄像头未激活时的提示 -->
     <div 
       v-show="!isCameraActive" 
-      class="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1d1f] text-white z-10"
+      class="absolute inset-0 flex flex-col items-center justify-center bg-theme text-white z-10"
     >
-      <div class="text-4xl mb-2">📷</div>
-      <div class="text-sm font-medium">点击开启摄像头</div>
-      <div class="text-xs text-gray-300 mt-1">用于二维码识别</div>
+      <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><rect fill="none" height="256" width="256"/><rect fill="none" height="64" rx="8" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" width="64" x="48" y="48"/><rect fill="none" height="64" rx="8" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" width="64" x="48" y="144"/><rect fill="none" height="64" rx="8" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" width="64" x="144" y="48"/><line fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" x1="144" x2="144" y1="144" y2="176"/><polyline fill="none" points="144 208 176 208 176 144" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" x1="176" x2="208" y1="160" y2="160"/><line fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" x1="208" x2="208" y1="192" y2="208"/></svg>
     </div>
 
     <!-- 摄像头相关元素 - 始终渲染但条件显示 -->
@@ -455,10 +453,11 @@ defineExpose({
       ></canvas>
       
       <!-- 摄像头状态指示器 -->
-      <div class="absolute top-2 right-2 flex items-center space-x-1 z-20">
+       <!-- 计划做帧数显示 -->
+      <!-- <div class="absolute top-2 right-2 flex items-center space-x-1 z-20">
         <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
         <span class="text-xs text-white font-medium">识别中</span>
-      </div>
+      </div> -->
       
       <!-- 操作提示 -->
       <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-xs text-white/70 bg-black/50 px-2 py-1 rounded">
