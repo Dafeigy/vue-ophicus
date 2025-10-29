@@ -22,138 +22,9 @@ const isCameraActive = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null); // 用于扫描的canvas
 const displayCanvasRef = ref<HTMLCanvasElement | null>(null); // 用于显示的canvas
-const stream: Ref<MediaStream | null> = ref(null);
-const scanInterval: Ref<number | null> = ref(null);
 const lastScanResult = ref<string | null>(null);
-const qrScanner: Ref<QrScanner | null> = ref(null);
 // 存储二维码扫描结果
 const scanResult = ref('')
-// 处理二维码扫描事件
-const handleQRScanned = (content) => {
-  console.log('接收到扫描结果:', content)
-  scanResult.value = content
-}
-// 初始化摄像头
-const initCamera = async () => {
-  try {
-    // 检查浏览器兼容性
-    const navigator = window.navigator;
-    const getUserMedia = navigator.mediaDevices?.getUserMedia ||
-                         (navigator as any).webkitGetUserMedia ||
-                         (navigator as any).mozGetUserMedia ||
-                         (navigator as any).msGetUserMedia;
-    
-    if (!getUserMedia) {
-      console.error('您的浏览器不支持摄像头访问，请使用更新版本的浏览器');
-      return;
-    }
-
-    // 检查安全上下文
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      console.warn('警告: 摄像头访问在非HTTPS环境下可能受限，请考虑使用HTTPS');
-    }
-
-    // 使用Promise封装旧版API
-    const getUserMediaPromise = (constraints: MediaStreamConstraints): Promise<MediaStream> => {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        return navigator.mediaDevices.getUserMedia(constraints);
-      }
-      
-      return new Promise((resolve, reject) => {
-        getUserMedia.call(navigator, constraints, resolve, reject);
-      });
-    };
-
-    // 获取视频流，不限制摄像头方向
-    stream.value = await getUserMediaPromise({
-      video: {
-        facingMode: 'environment',
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    });
-
-    // 显示视频流
-    await nextTick();
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream.value;
-      videoRef.value.play();
-    }
-    
-    isCameraActive.value = true;
-    console.log('摄像头已成功启动');
-    
-    // 开始扫描二维码
-    startQRCodeScanning();
-  } catch (error) {
-    console.error('启动摄像头失败:', error);
-    if (error instanceof DOMException) {
-      if (error.name === 'NotAllowedError') {
-        console.error('用户拒绝了摄像头访问权限');
-      } else if (error.name === 'NotFoundError') {
-        console.error('未找到摄像头设备');
-      } else if (error.name === 'NotReadableError') {
-        console.error('摄像头已被其他应用占用');
-      } else {
-        console.error('摄像头错误:', error.message);
-      }
-    }
-    isCameraActive.value = false;
-  }
-};
-
-// 停止摄像头
-const stopCamera = () => {
-  // 停止QR Scanner
-  if (qrScanner.value) {
-    qrScanner.value.stop();
-    qrScanner.value.destroy();
-    qrScanner.value = null;
-  }
-  
-  // 清除扫描间隔
-  if (scanInterval.value) {
-    clearInterval(scanInterval.value);
-    scanInterval.value = null;
-  }
-  
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop());
-    stream.value = null;
-  }
-  
-  if (videoRef.value) {
-    videoRef.value.srcObject = null;
-  }
-  
-  isCameraActive.value = false;
-  console.log('摄像头已关闭');
-};
-
-// 开始扫描二维码
-const startQRCodeScanning = () => {
-  // 停止之前的扫描器
-  if (qrScanner.value) {
-    qrScanner.value.stop();
-    qrScanner.value.destroy();
-    qrScanner.value = null;
-  }
-  
-  // 清除之前的扫描间隔
-  if (scanInterval.value) {
-    clearInterval(scanInterval.value);
-    scanInterval.value = null;
-  }
-  
-  // 启动显示摄像头画面的更新
-  updateDisplayCanvas();
-  
-  // 每50毫秒扫描一次
-  scanInterval.value = window.setInterval(() => {
-    console.log("Scaning now...");
-    scanQRCode();
-  }, 50);
-};
 
 // 扫描二维码
 const scanQRCode = async () => {
@@ -331,125 +202,15 @@ const directScanResult = ref('');
 const directScanStatus = ref('');
 const testCanvasRef = ref<HTMLCanvasElement | null>(null);
 
-// 生成测试用二维码
-const generateTestQRCode = () => {
-  try {
-    generatedQRCode.value = renderSVG(testQRCodeContent.value, {
-      pixelSize: 8,
-      whiteColor: '#555',
-      blackColor: '#1D1E1F',
-    });
-    console.log('测试二维码已生成:', testQRCodeContent.value);
-  } catch (error) {
-    console.error('生成二维码失败:', error);
-  }
-};
-
-// 直接从生成的二维码中识别内容
-const directScanQRCode = () => {
-  if (!testCanvasRef.value) {
-    directScanStatus.value = '❌ Canvas元素不存在';
-    return;
-  }
-  
-  const canvas = testCanvasRef.value;
-  const ctx = canvas.getContext('2d');
-  
-  if (!ctx) {
-    directScanStatus.value = '❌ 无法获取Canvas上下文';
-    return;
-  }
-  
-  try {
-    directScanStatus.value = '🔄 正在识别二维码...';
-    
-    // 创建一个临时的DOM元素来解析SVG
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = generatedQRCode.value;
-    const svgElement = tempDiv.querySelector('svg');
-    
-    if (!svgElement) {
-      directScanStatus.value = '❌ 无法获取SVG元素';
-      return;
-    }
-    
-    // 设置canvas尺寸与SVG一致
-    const svgWidth = parseInt(svgElement.getAttribute('width') || '200');
-    const svgHeight = parseInt(svgElement.getAttribute('height') || '200');
-    canvas.width = svgWidth;
-    canvas.height = svgHeight;
-    
-    // 清空canvas
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // 将SVG内容绘制到canvas上
-    const image = new Image();
-    const svgData = new XMLSerializer().serializeToString(svgElement);
-    const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
-    const url = URL.createObjectURL(svgBlob);
-    
-    image.onload = async () => {
-      try {
-        // 绘制SVG到canvas
-        ctx.drawImage(image, 0, 0);
-        
-        // 使用qr-scanner识别canvas中的二维码
-        const result = await QrScanner.scanImage(canvas, {
-          returnDetailedScanResult: true });
-        
-        if (result) {
-          directScanResult.value = result.data;
-          directScanStatus.value = '✅ 识别成功！';
-          scanSuccess.value = true;
-          setTimeout(() => {
-            scanSuccess.value = false;
-          }, 2000);
-        } else {
-          directScanResult.value = '';
-          directScanStatus.value = '❌ 未能识别出二维码';
-        }
-        
-        // 清理
-        URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error('绘制或识别过程中出错:', error);
-        directScanStatus.value = `❌ 识别出错: ${error instanceof Error ? error.message : String(error)}`;
-        URL.revokeObjectURL(url);
-      }
-    };
-    
-    image.onerror = (err) => {
-      console.error('图像加载失败:', err);
-      directScanStatus.value = '❌ 图像加载失败';
-      URL.revokeObjectURL(url);
-    };
-    
-    image.src = url;
-  } catch (error) {
-    console.error('直接识别二维码失败:', error);
-    directScanStatus.value = `❌ 识别失败: ${error instanceof Error ? error.message : String(error)}`;
-  }
-};
-
-// 组件挂载后生成测试二维码并自动识别
-nextTick(() => {
-  generateTestQRCode();
-  // 延迟一下让SVG完全生成
-  setTimeout(() => {
-    directScanQRCode();
-  }, 100);
-});
-
-// 组件销毁时停止摄像头
-onUnmounted(() => {
-  stopCamera();
-});
+const handleQRScanned = (content) => {
+  console.log('接收到扫描结果:', content)
+  scanResult.value = content
+}
 
 </script>
 
 <template>
-    <div id="con" class="xl:aspect-video h-full w-full max-w-[2160px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
+    <div id="con" class="text-theme xl:aspect-video h-full w-full max-w-[2160px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
         <div id="left" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col xl:px-8 mb-2 lg:mb-0 overflow-hidden justify-center md:justify-start xl:justify-center">
             <div id="TODO" class="w-full py-2 xl:py-4 px-4 items-center xl:text-2xl text-xl flex text-green font-display font-bold bg-theme lg:text-3xl">
                 PROJECT OPHICULUS [R]
@@ -481,7 +242,7 @@ onUnmounted(() => {
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
                     ▧ BLOCKS STATUS▸
                 </div>
-                <div id="notrans" class="xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[calc(50% - 10px)] sm:max-h-[100px] md:min-h-[150px] flex items-center justify-center">
+                <div id="notrans" class="xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-md text-center min-h-[calc(50% - 10px)] sm:max-h-[100px] md:min-h-[150px] flex items-center justify-center">
                   <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
                 </div>
                 <!-- <div id="transblocks" v-show="!isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">

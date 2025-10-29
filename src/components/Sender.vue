@@ -272,13 +272,13 @@ function initializeLubyTransformEncoder() {
 </script>
 
 <template>
-    <div id="con" class="xl:aspect-video h-full w-full max-w-[2160px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
+    <div id="con" class="text-theme xl:aspect-video h-full w-full max-w-[2160px] mx-auto flex flex-col md:flex-row items-center bg-[#202020] p-2 sm:border-0 md:border-0 justify-start">
         <div id="left" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col xl:px-8 mb-2 lg:mb-0 overflow-hidden justify-center md:justify-start xl:justify-center">
             <div id="TODO" class="w-full py-2 xl:py-4 px-4 items-center xl:text-2xl text-xl flex text-green font-display font-bold bg-theme lg:text-3xl">
                 PROJECT OPHICULUS [T]
             </div>
             <div id="status" class=" w-full flex justify-center font-display flex-col" >
-                <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%]">
+                <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] ">
                     ▧ ENCODE STATUS▸
                 </div>
                 <div id="details" class="grid grid-cols-5 mt-[1%] px-4 gap-1 sm:gap-2 text-sm sm:text-base">
@@ -292,7 +292,7 @@ function initializeLubyTransformEncoder() {
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
                     ▧ BLOCKS STATUS▸
                 </div>
-                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[120px]">
+                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-md text-center min-h-[calc(50% - 10px)] sm:max-h-[100px] md:min-h-[150px]">
                   <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
                 </div>
                 <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
