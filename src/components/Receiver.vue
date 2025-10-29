@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import QrScanner from 'qr-scanner'; 
-
+import Camera from './Camera.vue'
 import { encode, decode } from 'js-base64';
 import {
   renderSVG,
 } from 'uqr'
 import { inject, ref, onUnmounted, nextTick, Ref } from 'vue';
-import { ElButton } from 'element-plus';
 
 // 从父组件App.vue注入切换模式函数
 const handleSwitchMode = inject('handleSwitchMode') as (event: MouseEvent) => void;
@@ -27,7 +26,13 @@ const stream: Ref<MediaStream | null> = ref(null);
 const scanInterval: Ref<number | null> = ref(null);
 const lastScanResult = ref<string | null>(null);
 const qrScanner: Ref<QrScanner | null> = ref(null);
-
+// 存储二维码扫描结果
+const scanResult = ref('')
+// 处理二维码扫描事件
+const handleQRScanned = (content) => {
+  console.log('接收到扫描结果:', content)
+  scanResult.value = content
+}
 // 初始化摄像头
 const initCamera = async () => {
   try {
@@ -440,12 +445,6 @@ nextTick(() => {
 onUnmounted(() => {
   stopCamera();
 });
-const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUSPROJECT OPHICULUS", {
-    pixelSize : 12,
-    whiteColor : '#1D1E1F',
-    blackColor :'#f5eddc',
-    }
-)
 
 </script>
 
@@ -460,9 +459,18 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                     ▧ DECODE STATUS▸
                 </div>
                 <div id="details" class="grid grid-cols-5 mt-[1%] px-4 gap-1 sm:gap-2 text-sm sm:text-base">
-                    <p class="bg-theme text-green px-1 col-span-2 select-none xl:flex hidden">▣ INDICES</p>
-                        <p class="col-span-3 xl:flex hidden" v-if="file && transBlockIndices.length > 0">{{ transBlockIndices[transBlockIndices.length - 1] }}</p>
-                        <p class="col-span-3 xl:flex hidden" v-else>[ ]</p>
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ FILENAME:</p> 
+                        <p class="col-span-2 sm:col-span-2 truncate overflow-hidden whitespace-nowrap" v-if="isCameraActive"> 占位 </p>
+                        <p class="col-span-3 " v-else> ..?Camera</p>
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ BYTES:</p>
+                        <p class="col-span-3 " v-if="file" >..? BYTES</p>
+                        <p class="col-span-3 " v-else>0 Bytes</p>
+                    <p class="bg-green text-theme px-1 col-span-2 ">▣ TOTAL:</p>
+                        <p class="col-span-3 " v-if="file">..? Length</p>
+                        <p class="col-span-3 " v-else>0 </p>
+                    <p class="bg-theme text-green px-1 col-span-2 select-none xl:flex ">▣ INDICES</p>
+                        <p class="col-span-3 xl:flex" v-if="file && transBlockIndices.length > 0">{{ transBlockIndices[transBlockIndices.length - 1] }}</p>
+                        <p class="col-span-3 xl:flex" v-else>[ ]</p>
                     <p class="bg-theme text-green px-1 col-span-2 select-none">▣ BITRATE</p >
                         <p class="col-span-3 " v-if="file">{{ bitRATE }} bit/s</p>
                         <p class="col-span-3 " v-else>0.0 bits/s</p>
@@ -473,7 +481,7 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
                     ▧ BLOCKS STATUS▸
                 </div>
-                <div id="notrans" v-show="!isStartStreaming && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[150px] ">
+                <div id="notrans" class="xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[calc(50% - 10px)] sm:max-h-[100px] md:min-h-[150px] flex items-center justify-center">
                   <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
                 </div>
                 <!-- <div id="transblocks" v-show="!isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
@@ -489,74 +497,37 @@ const svgg = renderSVG("PROJECT OPHICULUS PROJECT OPHICULUSPROJECT OPHICULUSPROJ
               </div>
         </div>
         <div id="right" class="w-full h-2/5 xl:w-[50%] md:h-[80%] lg:h-[80%] flex flex-col lg:mx-0 items-center px-2 md:justify-center">
-            <!-- 相机录频区域 -->
-            <div id="camera" class="w-full  md:max-w-[calc(min(75vmin,240px))] lg:max-w-[300px] xl:max-w-[340px] items-center flex justify-center">
-              <!-- 视频元素 -->
-              <div class="relative w-full aspect-square bg-black rounded-lg overflow-hidden">
-                <!-- 隐藏的video元素 -->
-                <video
-                  ref="videoRef"
-                  class="hidden"
-                  autoplay
-                  muted
-                  playsinline
-                ></video>
-                
-                <!-- 隐藏的canvas用于二维码扫描 -->
-                <canvas ref="canvasRef" class="hidden"></canvas>
-                
-                <!-- 可见的canvas用于显示摄像头画面 -->
-                <canvas 
-                  ref="displayCanvasRef" 
-                  class="w-full h-full object-cover"
-                  v-show="isCameraActive"
-                ></canvas>
+            <div id="camera" class="w-full max-w-[340px] items-center flex justify-center">
+              <div id="scan-container" class="w-full aspect-square flex justify-center">
+                <Camera width="100%" @qr-scanned="handleQRScanned" @camera-error="error => scanResult = `错误: ${error}`"/>
+              </div>
+              
+            </div>
+            <div id="debug" class="flex justify-center mt-2 w-3/5">
+              <div id="debug-info" class="text-xs truncate text-[#eeeddd] bg-[#333] px-3 py-1.5 rounded-md min-w-[200px] w-full lg:w-1/2 text-center">
+                {{ scanResult || 'Somthing just like this with a long string but not long enougth' }}
               </div>
             </div>
-            <!-- 控制区域 - 音乐播放器风格 -->
-            <div id="control" class="w-full max-w-[300px] ">
-                <!-- 波形图 -->
-                <div class="hidden xl:flex w-full h-24 rounded-t-xl  items-center px-4">
-                  <div class="w-full flex items-center justify-between">
-                    
-                  </div>
-                  <!-- 播放指示器 -->
-                  <!-- <div class="w-1 h-8 bg-orange rounded-full -ml-1.5 shadow-lg" v-show="isEncoding"></div> -->
-                </div>
-                
-                <!-- 测试二维码区域 -->
-                  
-                
-                <!-- 按钮控制区域 -->
+            <!-- 按钮控制区域 -->
                 <div class="w-full rounded-b-xl py-4 flex items-center justify-center space-x-5">
-                  <!-- 左侧：发送端切换按钮 -->
+                  <!-- 左侧：接收端按钮 -->
                   <button
                     @click="handleSwitchMode" 
                     class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
                   >
                     <span>⇄</span>
-                    <span class="text-xs xl:flex hidden">SENDER</span>
-                  </button>
-                  <button
-                    @click="handleSwitchMode" 
+                    <span class="text-xs xl:flex hidden">RECEIVER</span>
+                </button>
+                  <!-- 右侧：选择文件按钮 -->
+                  <button 
+                    @click="" 
                     class="flex items-center justify-center gap-2 px-4 py-2 border border-theme rounded-full hover:bg-[#343536] transition-all cursor-pointer"
                   >
-                    <span>{{ isCameraActive ? '🔴' : '🟢' }}</span>
-                    <span class="text-xs xl:flex hidden">{{ isCameraActive ? 'OFF' : 'ON' }}</span>
+                    <span>📁</span>
+                    <span class="text-xs xl:flex hidden">SELECT</span>
                   </button>
-                  <!-- 右侧：摄像头控制按钮 -->
-                  <el-button 
-                    @click="isCameraActive ? stopCamera() : initCamera()" 
-                    :type="isCameraActive ? 'danger' : 'success'"
-
-                    :rounded="'rounded-full'"
-                    class="flex items-center justify-center gap-2"
-                  >
-                    
-                  </el-button>
                 </div>
-              </div>
-            </div>
+        </div>
     </div>
 
 </template>

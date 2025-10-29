@@ -411,7 +411,7 @@ defineExpose({
 
 <template>
   <div 
-    class="relative aspect-square bg-black rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20"
+    class="relative aspect-square bg-black rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-green"
     :style="containerStyle"
     @click="toggleCamera"
   >
@@ -424,7 +424,7 @@ defineExpose({
     </div>
 
     <!-- 摄像头相关元素 - 始终渲染但条件显示 -->
-    <div class="relative w-full h-full">
+    <div class="relative w-full h-full aspect-square">
       <!-- 隐藏的video元素 -->
       <video
         id="cameraVideo"
@@ -451,8 +451,7 @@ defineExpose({
         class="absolute top-0 left-0 z-0" 
         :class="{ 'hidden': !isCameraActive, 'w-full h-full object-cover': isCameraActive }"
       ></canvas>
-      
-      <!-- 摄像头状态指示器 -->
+
        <!-- 计划做帧数显示 -->
       <!-- <div class="absolute top-2 right-2 flex items-center space-x-1 z-20">
         <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
@@ -466,7 +465,7 @@ defineExpose({
     </div>
     
     <!-- 组件边框 -->
-    <div class="absolute inset-0 border-2 border-gray-600/30 rounded-2xl pointer-events-none"></div>
+    <div class="absolute inset-0 border-2 border-gray-600/30 rounded-2xl pointer-events-none aspect-square"></div>
   </div>
 </template>
 

@@ -45,23 +45,17 @@ import init, { LubyTransformEncoder } from '../../wasm/luby_transform.js';
 let encoder = null;
 let isWasmInitialized = false;
 
-// 窗口大小变化处理函数
-const handleResize = () => {
-  isMobile.value = window.innerWidth < 768;
-};
 
 // 初始化WASM模块和响应式布局
 onMounted(async () => {
   try {
     await init();
     isWasmInitialized = true;
-    console.log('Luby Transform WASM initialized successfully');
+    console.log('Luby Transform WASM module initialized successfully');
   } catch (error) {
     console.error('Failed to initialize WASM module:', error);
   }
-  
-  // 添加窗口大小变化监听
-  window.addEventListener('resize', handleResize);
+
 });
 
 function blobToBase64(blob) {
@@ -200,8 +194,7 @@ function stopEncoding() {
 // 组件卸载时确保清理所有资源
 onUnmounted(() => {
   stopEncoding();
-  // 移除窗口大小变化监听
-  window.removeEventListener('resize', handleResize);
+
 });
 
 
@@ -216,8 +209,8 @@ const handleFileClick = async() => {
     transmittedIndices.value = [];
     currentTransmittingIndices.value = [];
     transBlockIndices.value = [];
-    console.log(file.value)
-    
+    const filename = file.value.name;
+    console.log(filename) 
     // 1. 先将整个文件转换为Base64字符串
     const fullBase64 = await blobToBase64(file.value);
     
@@ -237,12 +230,18 @@ const handleFileClick = async() => {
       
       // 将二进制字符串转换回Base64
       const base64String = btoa(chunkBinary);
-      chunks.value.push(base64String);
+      const block_data = JSON.stringify({
+        filename,
+        index: i,
+        total: chunks.value.length,
+        data: base64String
+      });
+      chunks.value.push(block_data);
     }
 
-    console.log('文件切片数量:', chunks.value.length);
-    console.log('每个切片长度:', chunks.value[0]?.length); // 所有切片长度相等
-    console.log('文件切片:', chunks.value); 
+    // console.log('Block Counts:', chunks.value.length);
+    // console.log('Block Size:', JSON.parse(chunks.value[0]).data?.length); // 所有切片长度相等
+    // console.log('Blocks[0]:', chunks.value[0]); 
     
     // 初始化Luby Transform编码器
     initializeLubyTransformEncoder();
@@ -264,68 +263,11 @@ function initializeLubyTransformEncoder() {
     encoder = new LubyTransformEncoder(chunks.value, BigInt(parseInt(seed.value)));
     console.log('Luby Transform encoder initialized with', encoder.source_block_count(), 'source blocks');
     
-    // 生成一些编码块进行测试
-    generateEncodedBlocks(5); // 生成5个编码块作为示例
   } catch (error) {
     console.error('Failed to initialize Luby Transform encoder:', error);
   }
 }
 
-// 生成编码块
-function generateEncodedBlocks(count) {
-  if (!encoder) {
-    console.warn('Encoder not initialized');
-    return;
-  }
-  
-  const encodedBlocks = [];
-  for (let i = 0; i < count; i++) {
-    try {
-      // 生成一个编码块
-      const encodedBlock = encoder.generate_block();
-      encodedBlocks.push({
-        seed: encodedBlock.seed,
-        degree: encodedBlock.degree,
-        data: encodedBlock.data
-      });
-      
-      console.log(`Generated encoded block ${i}:`, {
-        seed: encodedBlock.seed.toString(),
-        degree: encodedBlock.degree,
-        dataLength: encodedBlock.data.length
-      });
-      
-      // 注意：实际使用时应该在适当的时候调用encodedBlock.free()来释放内存
-      // 这里为了简化示例，暂不处理
-    } catch (error) {
-      console.error(`Failed to generate encoded block ${i}:`, error);
-    }
-  }
-  
-  return encodedBlocks;
-}
-
-
-const handleFileSlice = () => {
-    
-    if (file.value) {
-    const chunkSize = 1024 * 1024; // 1MB
-    chunks.value = [];
-    // Clear transmitting indices when file is sliced
-    transmittedIndices.value = [];
-    currentTransmittingIndices.value = [];
-    transBlockIndices.value = [];
-    let start = 0;
-
-    while (start < file.value.size) {
-      const end = Math.min(start + chunkSize, file.value.size);
-      chunks.value.push(file.value.slice(start, end));
-      start = end;
-    }
-
-    // console.log('文件切片:', chunks.value);
-  }
-};
 
 </script>
 
@@ -350,7 +292,7 @@ const handleFileSlice = () => {
                 <div class="card-header font-display lg:text-2xl bg-orange px-4 mt-[2%] hidden xl:flex">
                     ▧ BLOCKS STATUS▸
                 </div>
-                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[150px]">
+                <div id="notrans" v-show="!isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl text-center min-h-[120px]">
                   <div class="col-span-30 flex items-center justify-center text-green text-xl animate-blink select-none">WAITING FOR FILE BLOCKS ... ...</div>
                 </div>
                 <div id="transblocks" v-show="isFileChunked && !isMobile" class="hidden xl:grid xl:grid-cols-30 mt-[2%] px-2 border rounded-2xl overflow-y-auto" style="max-height: 150px; scrollbar-color: transparent transparent; overflow-x: hidden;">
