@@ -391,7 +391,7 @@ const directScanQRCode = () => {
         
         // 使用qr-scanner识别canvas中的二维码
         const result = await QrScanner.scanImage(canvas, {
-          returnDetailedScanResult: false
+          returnDetailedScanResult: false as const
         });
         
         if (result) {
