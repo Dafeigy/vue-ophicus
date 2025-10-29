@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   qrScanned: [content: string]; // 二维码识别成功事件
   cameraError: [error: string]; // 摄像头错误事件
+  qrCodeDetected: [result: string]; // 用于调试的二维码识别事件
 }>();
 
 // 响应式变量
@@ -173,71 +174,84 @@ const stopCamera = () => {
   };
 
 // 扫描二维码
-const scanQRCode = async () => {
-  // 使用querySelector作为备选方案
-  let videoElement = videoRef.value || document.getElementById('cameraVideo') as HTMLVideoElement | null;
-  let canvasElement = canvasRef.value || document.getElementById('scanCanvas') as HTMLCanvasElement | null;
-  
-  if (!videoElement || !canvasElement) return;
-  
-  const scanCanvas = canvasElement;
-  const ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
-  
-  if (!ctx) return;
-  
-  try {
-    // 设置canvas尺寸
-    const videoWidth = videoElement.videoWidth || 640;
-    const videoHeight = videoElement.videoHeight || 480;
-    
-    scanCanvas.width = videoWidth;
-    scanCanvas.height = videoHeight;
-    
-    // 绘制当前视频帧到canvas
-    ctx.drawImage(videoElement, 0, 0, scanCanvas.width, scanCanvas.height);
-    
-    // 计算扫描框位置和大小（中间80%的区域）
-    const scanBoxSize = Math.min(scanCanvas.width, scanCanvas.height) * 0.8;
-    const scanBoxX = (scanCanvas.width - scanBoxSize) / 2;
-    const scanBoxY = (scanCanvas.height - scanBoxSize) / 2;
-    
-    // 创建一个临时canvas用于裁剪扫描框内的图像
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = scanBoxSize;
-    tempCanvas.height = scanBoxSize;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    if (!tempCtx) return;
-    
-    // 从原canvas裁剪出扫描框内的图像
-    tempCtx.drawImage(
-      scanCanvas, 
-      scanBoxX, scanBoxY, scanBoxSize, scanBoxSize, // 源区域
-      0, 0, scanBoxSize, scanBoxSize // 目标区域
-    );
-    
-    // 使用qr-scanner识别裁剪后的图像中的二维码
-    const result = await QrScanner.scanImage(tempCanvas, {
-      returnDetailedScanResult: false as const
-    });
-    
-    if (result) {
-      console.log('扫描到二维码:', result);
+    const scanQRCode = async () => {
+      // 使用querySelector作为备选方案
+      let videoElement = videoRef.value || document.getElementById('cameraVideo') as HTMLVideoElement | null;
+      let canvasElement = canvasRef.value || document.getElementById('scanCanvas') as HTMLCanvasElement | null;
       
-      // 避免重复触发相同的结果
-      if (lastScanResult.value !== result) {
-        lastScanResult.value = result;
-        emit('qrScanned', result);
+      if (!videoElement || !canvasElement) return;
+      
+      const scanCanvas = canvasElement;
+      const ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      
+      if (!ctx) return;
+      
+      try {
+        // 设置canvas尺寸
+        const videoWidth = videoElement.videoWidth || 640;
+        const videoHeight = videoElement.videoHeight || 480;
+        
+        scanCanvas.width = videoWidth;
+        scanCanvas.height = videoHeight;
+        
+        // 绘制当前视频帧到canvas
+        ctx.drawImage(videoElement, 0, 0, scanCanvas.width, scanCanvas.height);
+        
+        // 计算扫描框位置和大小（中间80%的区域）
+        const scanBoxSize = Math.min(videoWidth, videoHeight) * 0.8;
+        const scanBoxX = (videoWidth - scanBoxSize) / 2;
+        const scanBoxY = (videoHeight - scanBoxSize) / 2;
+        
+        // 创建临时canvas用于裁剪中间80%的区域
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        if (tempCtx) {
+          tempCanvas.width = scanBoxSize;
+          tempCanvas.height = scanBoxSize;
+          
+          // 从原图裁剪中间80%的区域到临时canvas
+          tempCtx.drawImage(
+            scanCanvas,
+            scanBoxX, scanBoxY, scanBoxSize, scanBoxSize, // 源区域
+            0, 0, scanBoxSize, scanBoxSize // 目标区域
+          );
+          
+          // 识别二维码
+          const result = await QrScanner.scanImage(tempCanvas, {
+            returnDetailedScanResult: false as const
+          });
+          
+          if (result) {
+            console.log('扫描到二维码:', result);
+            
+            // 避免重复触发相同的结果
+            if (lastScanResult.value !== result) {
+              lastScanResult.value = result;
+              emit('qrScanned', result);
+              emit('qrCodeDetected', result);
+              
+              // 直接更新debug-info div（作为备用方案）
+              setTimeout(() => {
+                const debugInfoDiv = document.getElementById('debug-info');
+                if (debugInfoDiv) {
+                  debugInfoDiv.textContent = `识别结果: ${result}`;
+                  console.log('已更新debug-info div:', result);
+                }
+              }, 0);
+            }
+          }
+        }
+      } catch (error) {
+        // 静默失败，继续下一次扫描
+        console.debug('扫描失败，继续下一次:', error);
+      } finally {
+        // 清理事件监听器
+        if (videoElement) {
+          videoElement.onerror = null;
+        }
       }
-    }
-    
-    // 清理临时canvas
-    tempCanvas.remove();
-  } catch (error) {
-    // 解码错误，继续下一次扫描
-    // console.debug('二维码识别失败:', error);
-  }
-};
+    };
 
 // 开始扫描二维码
 const startQRCodeScanning = () => {
