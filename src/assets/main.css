@@ -16,6 +16,14 @@
   src: url("fonts/DepartureMono-Regular.woff2") format('woff2');
 }
 
+@font-face {
+  font-family: "sheikah";
+  font-style: normal;
+  /* font-weight: 200 700; */
+  font-display: swap;
+  src: url("fonts/sheikahglyphs-regular-webfont.woff2") format('woff2');
+}
+
 
 @theme {
   --color-orange: #b2653b;
@@ -26,5 +34,6 @@
   --color-theme: #f5eddc;
   --font-display: "Futura";
   --animate-circle: circle 0.75s linear infinite;
+  --font-sheikah: "sheikah";
   
 }
