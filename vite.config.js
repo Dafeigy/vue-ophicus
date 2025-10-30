@@ -9,11 +9,9 @@ export default defineConfig({
   plugins: [
     vue(),
     tailwindcss(),
-    
   ],
-  devServer: {
-  host: '192.168.31.240',
-  https: true, // 是否https
+  server: {
+    // host: '0.0.0.0',
   },
   resolve: {
     alias: {
