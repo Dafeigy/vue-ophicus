@@ -6,7 +6,7 @@ import Camera from './components/Camera.vue'
 import { ref, provide } from 'vue'
 
 // 当前模式：'sender' 或 'receiver'
-const currentMode = ref('receiver')
+const currentMode = ref('sender')
 
 // 提供切换模式的函数给子组件
 const handleSwitchMode = () => {
