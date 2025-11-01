@@ -30,7 +30,7 @@ const transmittedIndices = ref([]);
 const isMobile = ref(window.innerWidth < 768); // 768px以下视为移动设备
 
 const welcome = ref("Hello World!")
-
+const chunkSize = ref(1024 * 0.5); // 2KB  
 // 将svgg改为响应式变量，初始显示欢迎信息
 const svgg = ref(renderSVG(welcome.value, {
     pixelSize : 12,
@@ -211,7 +211,7 @@ const handleFileClick = async() => {
   input.type = 'file';
   input.onchange = async (event) => {
     file.value = (event.target as HTMLInputElement).files[0];
-    const chunkSize = 1024 * 0.5; // 2KB   
+     
     chunks.value = [];
     // Clear transmitting indices when new file is selected
     transmittedIndices.value = [];
@@ -227,13 +227,13 @@ const handleFileClick = async() => {
     const totalBytes = binaryString.length;
     
     // 3. 按块大小切分
-    for (let i = 0; i < totalBytes; i += chunkSize) {
+    for (let i = 0; i < totalBytes; i += chunkSize.value) {
       // 获取当前块的二进制字符串
-      let chunkBinary = binaryString.substring(i, Math.min(i + chunkSize, totalBytes));
+      let chunkBinary = binaryString.substring(i, Math.min(i + chunkSize.value, totalBytes));
       
       // 如果不足块大小，用空字符填充（对应0）
-      if (chunkBinary.length < chunkSize) {
-        chunkBinary = chunkBinary.padEnd(chunkSize, '\0');
+      if (chunkBinary.length < chunkSize.value) {
+        chunkBinary = chunkBinary.padEnd(chunkSize.value, '\0');
       }
       
       // 将二进制字符串转换回Base64

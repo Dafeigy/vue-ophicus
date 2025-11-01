@@ -1,5 +1,4 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
 import Receiver from './components/Receiver.vue'
 import Sender from './components/Sender.vue'
 import Camera from './components/Camera.vue'
